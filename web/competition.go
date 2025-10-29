@@ -16,17 +16,20 @@ import (
 )
 
 type CompetitionHandler struct {
-	competitionService service.CompetitionService
-	jwtHandler         jwt.Handler
-	log                loggerv2.Logger
+	competitionSvc service.CompetitionService
+	rankingSvc     service.RankingService
+	jwtHandler     jwt.Handler
+	log            loggerv2.Logger
 }
 
 var _ Handler = (*CompetitionHandler)(nil)
 
-func NewCompetitionHandler(competitionService service.CompetitionService, log loggerv2.Logger) *CompetitionHandler {
+func NewCompetitionHandler(competitionSvc service.CompetitionService, rankingSvc service.RankingService, jwtHandler jwt.Handler, log loggerv2.Logger) *CompetitionHandler {
 	return &CompetitionHandler{
-		competitionService: competitionService,
-		log:                log,
+		competitionSvc: competitionSvc,
+		rankingSvc:     rankingSvc,
+		jwtHandler:     jwtHandler,
+		log:            log,
 	}
 }
 
@@ -39,6 +42,7 @@ func (h *CompetitionHandler) Register(r *gin.Engine) {
 	r.PUT(constants.DisableCompetitionProblemPath, gintool.WrapHandler(h.DisableCompetitionProblem, h.log))
 	r.POST(constants.StartCompetitionPath, gintool.WrapHandler(h.StartCompetition, h.log))
 	r.GET(constants.GetCompetitionProblemListWithPresignedURLPath, gintool.WrapCompetitionWithoutBodyHandler(h.GetCompetitionProblemListWithPresignedURL, h.log))
+	r.GET(constants.GetCompetitionRankingListPath, gintool.WrapCompetitionHandler(h.GetCompetitionRankingList, h.log))
 }
 
 func (h *CompetitionHandler) CreateCompetition(c *gin.Context, param *model.CreateCompetitionParam) {
@@ -55,7 +59,7 @@ func (h *CompetitionHandler) CreateCompetition(c *gin.Context, param *model.Crea
 
 	ctx := c.Request.Context()
 
-	err := h.competitionService.CreateCompetition(ctx, param)
+	err := h.competitionSvc.CreateCompetition(ctx, param)
 	if err != nil {
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,
@@ -100,7 +104,7 @@ func (h *CompetitionHandler) UpdateCompetition(c *gin.Context, param *model.Upda
 		}
 	}
 
-	err := h.competitionService.UpdateCompetition(ctx, param)
+	err := h.competitionSvc.UpdateCompetition(ctx, param)
 	if err != nil {
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,
@@ -120,7 +124,7 @@ func (h *CompetitionHandler) AddCompetitionProblem(c *gin.Context, param *model.
 		logger.Uint64("competition_id", param.CompetitionID),
 		logger.Slice("problem_ids", param.ProblemIDs))
 
-	err := h.competitionService.AddCompetitionProblem(ctx, param)
+	err := h.competitionSvc.AddCompetitionProblem(ctx, param)
 	if err != nil {
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,
@@ -140,7 +144,7 @@ func (h *CompetitionHandler) RemoveCompetitionProblem(c *gin.Context, param *mod
 		logger.Uint64("competition_id", param.CompetitionID),
 		logger.Slice("problem_ids", param.ProblemIDs))
 
-	err := h.competitionService.RemoveCompetitionProblem(ctx, param)
+	err := h.competitionSvc.RemoveCompetitionProblem(ctx, param)
 	if err != nil {
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,
@@ -160,7 +164,7 @@ func (h *CompetitionHandler) EnableCompetitionProblem(c *gin.Context, param *mod
 		logger.Uint64("competition_id", param.CompetitionID),
 		logger.Slice("problem_ids", param.ProblemIDs))
 
-	err := h.competitionService.EnableCompetitionProblem(ctx, param)
+	err := h.competitionSvc.EnableCompetitionProblem(ctx, param)
 	if err != nil {
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,
@@ -180,7 +184,7 @@ func (h *CompetitionHandler) DisableCompetitionProblem(c *gin.Context, param *mo
 		logger.Uint64("competition_id", param.CompetitionID),
 		logger.Slice("problem_ids", param.ProblemIDs))
 
-	err := h.competitionService.DisableCompetitionProblem(ctx, param)
+	err := h.competitionSvc.DisableCompetitionProblem(ctx, param)
 	if err != nil {
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,
@@ -199,7 +203,7 @@ func (h *CompetitionHandler) StartCompetition(c *gin.Context, param *model.Start
 	ctx := loggerv2.ContextWithFields(c.Request.Context(), logger.Uint64("competition_id", param.CompetitionID))
 
 	// 检查用户是否在比赛名单中
-	ok, err := h.competitionService.CheckUserInCompetition(ctx, param.CompetitionID, param.Operator)
+	ok, err := h.competitionSvc.CheckUserInCompetition(ctx, param.CompetitionID, param.Operator)
 	if err != nil {
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,
@@ -218,7 +222,7 @@ func (h *CompetitionHandler) StartCompetition(c *gin.Context, param *model.Start
 	}
 
 	// 检查是否在比赛时间内
-	ok, err = h.competitionService.CheckCompetitionTime(ctx, param.CompetitionID)
+	ok, err = h.competitionSvc.CheckCompetitionTime(ctx, param.CompetitionID)
 	if err != nil {
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,
@@ -256,7 +260,7 @@ func (h *CompetitionHandler) GetCompetitionProblemListWithPresignedURL(c *gin.Co
 	ctx := loggerv2.ContextWithFields(c.Request.Context(),
 		logger.Uint64("competition_id", param.CompetitionID))
 
-	problems, err := h.competitionService.GetCompetitionProblemListWithPresignedURL(ctx, param.CompetitionID)
+	problems, err := h.competitionSvc.GetCompetitionProblemListWithPresignedURL(ctx, param.CompetitionID)
 	if err != nil {
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,
@@ -269,5 +273,30 @@ func (h *CompetitionHandler) GetCompetitionProblemListWithPresignedURL(c *gin.Co
 		Code:    http.StatusOK,
 		Message: "success",
 		Data:    problems,
+	})
+}
+
+func (h *CompetitionHandler) GetCompetitionRankingList(c *gin.Context, param *model.GetCompetitionRankingListParam) {
+	ctx := loggerv2.ContextWithFields(c.Request.Context(),
+		logger.Uint64("competition_id", param.CompetitionID))
+
+	rankingList, total, err := h.rankingSvc.GetCompetitionRankingList(ctx, param.CompetitionID, param.Page, param.PageSize)
+	if err != nil {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusInternalServerError,
+			Message: fmt.Sprintf("GetCompetitionRankingList failed: %s", err.Error()),
+		})
+		h.log.ErrorContext(ctx, "GetCompetitionRankingList failed", logger.Error(err))
+		return
+	}
+	gintool.GinResponse(c, &gintool.Response{
+		Code:    http.StatusOK,
+		Message: "success",
+		Data: model.GetCompetitionRankingListResponse{
+			List:     rankingList,
+			Total:    total,
+			Page:     param.Page,
+			PageSize: param.PageSize,
+		},
 	})
 }

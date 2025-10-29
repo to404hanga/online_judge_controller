@@ -19,7 +19,6 @@ const (
 	DisableCompetitionProblemPath                 = "/DisableCompetitionProblem"                 // 禁用比赛题目
 	StartCompetitionPath                          = "/StartCompetition"                          // 开始比赛
 	GetCompetitionProblemListWithPresignedURLPath = "/GetCompetitionProblemListWithPresignedURL" // 获取比赛题目列表（带预签名 URL）
-	GetCompetitionRankingListPath                 = "/GetCompetitionRankingList"                 // 获取比赛排名列表
 )
 
 const (
@@ -28,4 +27,8 @@ const (
 	// GetSubmissionListPath = "/GetSubmissionList" // 获取提交列表
 	GetSubmissionDownloadPresignedURLPath = "/GetSubmissionDownloadPresignedURL" // 获取提交下载预签名 URL
 	GetLatestSubmissionPath               = "/GetLatestSubmission"               // 获取最新提交
+)
+
+const (
+	GetCompetitionRankingListPath = "/GetCompetitionRankingList" // 获取比赛排名列表
 )
