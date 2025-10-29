@@ -19,6 +19,7 @@ const (
 	DisableCompetitionProblemPath                 = "/DisableCompetitionProblem"                 // 禁用比赛题目
 	StartCompetitionPath                          = "/StartCompetition"                          // 开始比赛
 	GetCompetitionProblemListWithPresignedURLPath = "/GetCompetitionProblemListWithPresignedURL" // 获取比赛题目列表（带预签名 URL）
+	GetCompetitionFastestSolverListPath           = "/GetCompetitionFastestSolverList"           // 获取比赛各个题目最快通过提交的用户列表
 )
 
 const (

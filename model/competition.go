@@ -51,3 +51,19 @@ type GetCompetitionProblemListWithPresignedURLParam struct {
 type GetCompetitionProblemListWithPresignedURLResponse struct {
 	Problems []ProblemWithPresignedURL `json:"problems"`
 }
+
+type GetCompetitionFastestSolverListParam struct {
+	CompetitionCommonParam `json:"-"`
+
+	ProblemIDs []uint64 `json:"problem_ids"`
+}
+
+type FastestSolver struct {
+	ProblemID uint64 `json:"problem_id"`
+	UserID    uint64 `json:"user_id"`
+}
+
+type GetCompetitionFastestSolverListResponse struct {
+	List  []FastestSolver `json:"list"`
+	Total int             `json:"total"`
+}

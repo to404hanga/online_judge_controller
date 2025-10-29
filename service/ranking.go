@@ -20,6 +20,7 @@ type RankingService interface {
 	GetCompetitionRankingList(ctx context.Context, competitionID uint64, page, pageSize int) ([]model.Ranking, int, error)
 	UpdateUserScore(ctx context.Context, competitionID, problemID, userID uint64, isAccepted bool, submissionTime time.Time) error
 	InitCompetitionRanking(ctx context.Context, competitionID uint64) error
+	GetFastestSolverList(ctx context.Context, competitionID uint64, problemIDs []uint64) []model.FastestSolver
 }
 
 type RankingServiceImpl struct {
@@ -39,10 +40,11 @@ func NewRankingService(db *gorm.DB, rdb redis.Cmdable, log loggerv2.Logger) Rank
 }
 
 const (
-	RankingKey      = "ranking:competition:%d"
-	UserDetailKey   = "ranking:user:%s:competition:%d"
-	PenaltyTime     = 20 * 60 * 1000 // 20分钟
-	ScoreMultiplier = 1000000000000
+	RankingKey              = "ranking:competition:%d"
+	UserDetailKey           = "ranking:user:%s:competition:%d"
+	ProblemFastestSolverKey = "ranking:problem:%d:competition:%d"
+	PenaltyTime             = 20 * 60 * 1000 // 20分钟
+	ScoreMultiplier         = 1000000000000
 )
 
 // UserRankingData 用户排行榜数据
@@ -225,4 +227,30 @@ func (s *RankingServiceImpl) InitCompetitionRanking(ctx context.Context, competi
 // 结果：A > B ✓
 func (s *RankingServiceImpl) calculateScore(totalAccepted int, totalTimeUsed int64) float64 {
 	return float64(int64(totalAccepted)*ScoreMultiplier - totalTimeUsed)
+}
+
+func (s *RankingServiceImpl) GetFastestSolverList(ctx context.Context, competitionID uint64, problemIDs []uint64) []model.FastestSolver {
+	res := make([]model.FastestSolver, 0, len(problemIDs))
+	for _, problemID := range problemIDs {
+		problemFastestSolverKey := fmt.Sprintf(ProblemFastestSolverKey, problemID, competitionID)
+
+		solverDataStr, err := s.rdb.Get(ctx, problemFastestSolverKey).Result()
+		if err != nil {
+			s.log.ErrorContext(ctx, "get problem fastest solver from redis failed", logger.Error(err))
+			continue
+		}
+		if len(solverDataStr) == 0 {
+			// 没人通过这道题
+			continue
+		}
+
+		var solverData model.FastestSolver
+		if err = json.Unmarshal([]byte(solverDataStr), &solverData); err != nil {
+			s.log.ErrorContext(ctx, "unmarshal problem fastest solver from redis failed", logger.Error(err))
+			continue
+		}
+		res = append(res, solverData)
+	}
+
+	return res
 }

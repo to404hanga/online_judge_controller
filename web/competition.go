@@ -11,6 +11,7 @@ import (
 	"github.com/to404hanga/online_judge_controller/pkg/gintool"
 	"github.com/to404hanga/online_judge_controller/service"
 	"github.com/to404hanga/online_judge_controller/web/jwt"
+	"github.com/to404hanga/pkg404/gotools/transform"
 	"github.com/to404hanga/pkg404/logger"
 	loggerv2 "github.com/to404hanga/pkg404/logger/v2"
 )
@@ -43,6 +44,7 @@ func (h *CompetitionHandler) Register(r *gin.Engine) {
 	r.POST(constants.StartCompetitionPath, gintool.WrapHandler(h.StartCompetition, h.log))
 	r.GET(constants.GetCompetitionProblemListWithPresignedURLPath, gintool.WrapCompetitionWithoutBodyHandler(h.GetCompetitionProblemListWithPresignedURL, h.log))
 	r.GET(constants.GetCompetitionRankingListPath, gintool.WrapCompetitionHandler(h.GetCompetitionRankingList, h.log))
+	r.GET(constants.GetCompetitionFastestSolverListPath, gintool.WrapCompetitionHandler(h.GetCompetitionFastestSolverList, h.log))
 }
 
 func (h *CompetitionHandler) CreateCompetition(c *gin.Context, param *model.CreateCompetitionParam) {
@@ -297,6 +299,40 @@ func (h *CompetitionHandler) GetCompetitionRankingList(c *gin.Context, param *mo
 			Total:    total,
 			Page:     param.Page,
 			PageSize: param.PageSize,
+		},
+	})
+}
+
+func (h *CompetitionHandler) GetCompetitionFastestSolverList(c *gin.Context, param *model.GetCompetitionFastestSolverListParam) {
+	ctx := loggerv2.ContextWithFields(c.Request.Context(),
+		logger.Uint64("competition_id", param.CompetitionID))
+
+	if len(param.ProblemIDs) == 0 {
+		problemList, err := h.competitionSvc.GetCompetitionProblemList(ctx, param.CompetitionID)
+		if err != nil {
+			gintool.GinResponse(c, &gintool.Response{
+				Code:    http.StatusInternalServerError,
+				Message: fmt.Sprintf("GetCompetitionProblemList failed: %s", err.Error()),
+			})
+			h.log.ErrorContext(ctx, "GetCompetitionProblemList failed", logger.Error(err))
+			return
+		}
+		param.ProblemIDs = transform.SliceFromSlice(problemList, func(i int, problem ojmodel.CompetitionProblem) uint64 {
+			return problem.ID
+		})
+	}
+
+	ctx = loggerv2.ContextWithFields(ctx, logger.Slice("problem_id_list", param.ProblemIDs))
+
+	// 不关心查询成功与否, Redis 由 xxx 负责维护
+	// TODO 将 xxx 改为具体的服务
+	fastestSolverList := h.rankingSvc.GetFastestSolverList(ctx, param.CompetitionID, param.ProblemIDs)
+	gintool.GinResponse(c, &gintool.Response{
+		Code:    http.StatusOK,
+		Message: "success",
+		Data: model.GetCompetitionFastestSolverListResponse{
+			List:  fastestSolverList,
+			Total: len(fastestSolverList),
 		},
 	})
 }
