@@ -16,6 +16,8 @@ const (
 	CSVRankingExporter  ExporterType = "csv-ranking"
 	XLSXRankingExporter ExporterType = "xlsx-ranking"
 	CSVDetailExporter   ExporterType = "csv-detail"
+
+	UnknownExporter ExporterType = "unknown"
 )
 
 var ExporterSuffixMap = map[ExporterType]string{
