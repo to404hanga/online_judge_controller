@@ -1,6 +1,10 @@
 package model
 
-import "time"
+import (
+	"time"
+
+	"github.com/to404hanga/online_judge_controller/service/exporter/factory"
+)
 
 type CreateCompetitionParam struct {
 	CommonParam `json:"-"`
@@ -66,4 +70,31 @@ type FastestSolver struct {
 type GetCompetitionFastestSolverListResponse struct {
 	List  []FastestSolver `json:"list"`
 	Total int             `json:"total"`
+}
+
+type ModelExportType int8
+
+const (
+	ModelExportTypeCSVRanking ModelExportType = iota + 1
+	ModelExportTypeXLSXRanking
+	ModelExportTypeCSVDetail
+)
+
+func (t ModelExportType) ToFactoryType() factory.ExporterType {
+	switch t {
+	case ModelExportTypeCSVRanking:
+		return factory.CSVRankingExporter
+	case ModelExportTypeXLSXRanking:
+		return factory.XLSXRankingExporter
+	case ModelExportTypeCSVDetail:
+		return factory.CSVDetailExporter
+	default:
+		return factory.UnknownExporter
+	}
+}
+
+type ExportCompetitionDataParam struct {
+	CompetitionCommonParam `json:"-"`
+
+	ExportType ModelExportType `json:"export_type" binding:"required,oneof=1 2 3"`
 }

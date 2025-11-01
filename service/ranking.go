@@ -28,7 +28,7 @@ type RankingService interface {
 	// GetFastestSolverList 获取最快通过每道题的用户
 	GetFastestSolverList(ctx context.Context, competitionID uint64, problemIDs []uint64) []model.FastestSolver
 	// Export 导出数据
-	Export(ctx context.Context, competitionID uint64, exporter factory.ExporterType) error
+	Export(ctx context.Context, competitionID uint64, exporter factory.ExporterType) (string, error)
 }
 
 // RankingServiceImpl 排行榜服务实现, 实时排行榜强依赖 Redis, 暂无 Redis 重建数据功能
@@ -37,16 +37,18 @@ type RankingServiceImpl struct {
 	rdb             redis.Cmdable
 	log             loggerv2.Logger
 	exporterFactory *factory.ExporterFactory
+	exportDir       string
 }
 
 var _ RankingService = (*RankingServiceImpl)(nil)
 
-func NewRankingService(db *gorm.DB, rdb redis.Cmdable, log loggerv2.Logger) RankingService {
+func NewRankingService(db *gorm.DB, rdb redis.Cmdable, log loggerv2.Logger, exportDir string) RankingService {
 	return &RankingServiceImpl{
 		db:              db,
 		rdb:             rdb,
 		log:             log,
 		exporterFactory: factory.NewExporterFactory(db, log),
+		exportDir:       exportDir,
 	}
 }
 
@@ -271,15 +273,16 @@ func (s *RankingServiceImpl) GetFastestSolverList(ctx context.Context, competiti
 }
 
 // Export 导出数据
-func (s *RankingServiceImpl) Export(ctx context.Context, competitionID uint64, exporter factory.ExporterType) error {
+func (s *RankingServiceImpl) Export(ctx context.Context, competitionID uint64, exporter factory.ExporterType) (string, error) {
 	exp := s.exporterFactory.GetExporter(exporter)
 	if exp == nil {
-		return fmt.Errorf("get exporter failed: exporter not found")
+		return "", fmt.Errorf("get exporter failed: exporter not found")
 	}
-	file, err := os.Create(fmt.Sprintf("%d%s", competitionID, factory.ExporterSuffixMap[exporter]))
+	filepath := fmt.Sprintf("%s/%d%s", s.exportDir, competitionID, factory.ExporterSuffixMap[exporter])
+	file, err := os.Create(filepath)
 	if err != nil {
-		return fmt.Errorf("create file failed: %w", err)
+		return "", fmt.Errorf("create file failed: %w", err)
 	}
 	defer file.Close()
-	return exp.Export(ctx, competitionID, file)
+	return filepath, exp.Export(ctx, competitionID, file)
 }

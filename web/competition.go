@@ -10,6 +10,7 @@ import (
 	"github.com/to404hanga/online_judge_controller/model"
 	"github.com/to404hanga/online_judge_controller/pkg/gintool"
 	"github.com/to404hanga/online_judge_controller/service"
+	"github.com/to404hanga/online_judge_controller/service/exporter/factory"
 	"github.com/to404hanga/online_judge_controller/web/jwt"
 	"github.com/to404hanga/pkg404/gotools/transform"
 	"github.com/to404hanga/pkg404/logger"
@@ -45,6 +46,7 @@ func (h *CompetitionHandler) Register(r *gin.Engine) {
 	r.GET(constants.GetCompetitionProblemListWithPresignedURLPath, gintool.WrapCompetitionWithoutBodyHandler(h.GetCompetitionProblemListWithPresignedURL, h.log))
 	r.GET(constants.GetCompetitionRankingListPath, gintool.WrapCompetitionHandler(h.GetCompetitionRankingList, h.log))
 	r.GET(constants.GetCompetitionFastestSolverListPath, gintool.WrapCompetitionHandler(h.GetCompetitionFastestSolverList, h.log))
+	r.GET(constants.ExportCompetitionDataPath, gintool.WrapCompetitionHandler(h.ExportCompetitionData, h.log))
 }
 
 func (h *CompetitionHandler) CreateCompetition(c *gin.Context, param *model.CreateCompetitionParam) {
@@ -335,4 +337,33 @@ func (h *CompetitionHandler) GetCompetitionFastestSolverList(c *gin.Context, par
 			Total: len(fastestSolverList),
 		},
 	})
+}
+
+func (h *CompetitionHandler) ExportCompetitionData(c *gin.Context, param *model.ExportCompetitionDataParam) {
+	ctx := loggerv2.ContextWithFields(c.Request.Context(),
+		logger.Uint64("competition_id", param.CompetitionID))
+
+	exporterType := param.ExportType.ToFactoryType()
+	if exporterType == factory.UnknownExporter {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusBadRequest,
+			Message: fmt.Sprintf("Unknown exporter type: %d", param.ExportType),
+		})
+		h.log.ErrorContext(ctx, "Unknown exporter type", logger.Int8("export_type", int8(param.ExportType)))
+		return
+	}
+	ctx = loggerv2.ContextWithFields(ctx, logger.String("export_type", string(exporterType)))
+
+	filepath, err := h.rankingSvc.Export(ctx, param.CompetitionID, exporterType)
+	if err != nil {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusInternalServerError,
+			Message: fmt.Sprintf("Export failed: %s", err.Error()),
+		})
+		h.log.ErrorContext(ctx, "Export failed", logger.Error(err))
+		return
+	}
+
+	// 将文件内容响应给前端
+	c.File(filepath)
 }
