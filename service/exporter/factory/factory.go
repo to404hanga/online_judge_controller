@@ -1,6 +1,8 @@
 package factory
 
 import (
+	"sync"
+
 	"github.com/to404hanga/online_judge_controller/service/exporter"
 	"github.com/to404hanga/online_judge_controller/service/exporter/csv"
 	"github.com/to404hanga/online_judge_controller/service/exporter/xlsx"
@@ -26,6 +28,7 @@ type ExporterFactory struct {
 	factory map[ExporterType]exporter.Exporter
 	db      *gorm.DB
 	log     loggerv2.Logger
+	mux     sync.RWMutex
 }
 
 func NewExporterFactory(db *gorm.DB, log loggerv2.Logger) *ExporterFactory {
@@ -37,6 +40,17 @@ func NewExporterFactory(db *gorm.DB, log loggerv2.Logger) *ExporterFactory {
 }
 
 func (f *ExporterFactory) GetExporter(exporterType ExporterType) exporter.Exporter {
+	f.mux.RLock()
+	if exp, exists := f.factory[exporterType]; exists {
+		f.mux.RUnlock()
+		return exp
+	}
+	f.mux.RUnlock()
+
+	f.mux.Lock()
+	defer f.mux.Unlock()
+
+	// 双重检查，避免重复创建
 	if exp, exists := f.factory[exporterType]; exists {
 		return exp
 	}
