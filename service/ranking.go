@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	ojmodel "github.com/to404hanga/online_judge_common/model"
 	"github.com/to404hanga/online_judge_controller/model"
+	"github.com/to404hanga/online_judge_controller/service/exporter/factory"
 	"github.com/to404hanga/pkg404/gotools/transform"
 	"github.com/to404hanga/pkg404/logger"
 	loggerv2 "github.com/to404hanga/pkg404/logger/v2"
@@ -17,25 +19,34 @@ import (
 )
 
 type RankingService interface {
+	// GetCompetitionRankingList 获取比赛排行榜
 	GetCompetitionRankingList(ctx context.Context, competitionID uint64, page, pageSize int) ([]model.Ranking, int, error)
+	// UpdateUserScore 更新用户分数
 	UpdateUserScore(ctx context.Context, competitionID, problemID, userID uint64, isAccepted bool, submissionTime time.Time) error
+	// InitCompetitionRanking 初始化比赛排行榜
 	InitCompetitionRanking(ctx context.Context, competitionID uint64) error
+	// GetFastestSolverList 获取最快通过每道题的用户
 	GetFastestSolverList(ctx context.Context, competitionID uint64, problemIDs []uint64) []model.FastestSolver
+	// Export 导出比赛排行榜
+	Export(ctx context.Context, competitionID uint64, exporter factory.RankingExporterType) error
 }
 
+// RankingServiceImpl 排行榜服务实现, 实时排行榜强依赖 Redis, 暂无 Redis 重建数据功能
 type RankingServiceImpl struct {
-	db  *gorm.DB
-	rdb redis.Cmdable
-	log loggerv2.Logger
+	db              *gorm.DB
+	rdb             redis.Cmdable
+	log             loggerv2.Logger
+	exporterFactory *factory.RankingExporterFactory
 }
 
 var _ RankingService = (*RankingServiceImpl)(nil)
 
 func NewRankingService(db *gorm.DB, rdb redis.Cmdable, log loggerv2.Logger) RankingService {
 	return &RankingServiceImpl{
-		db:  db,
-		rdb: rdb,
-		log: log,
+		db:              db,
+		rdb:             rdb,
+		log:             log,
+		exporterFactory: factory.NewRankingExporterFactory(db, log),
 	}
 }
 
@@ -57,6 +68,7 @@ type UserRankingData struct {
 	Problems      map[uint64]model.Problem `json:"problems"`
 }
 
+// GetCompetitionRankingList 获取比赛排行榜
 func (s *RankingServiceImpl) GetCompetitionRankingList(ctx context.Context, competitionID uint64, page, pageSize int) ([]model.Ranking, int, error) {
 	rankingKey := fmt.Sprintf(RankingKey, competitionID)
 
@@ -111,6 +123,7 @@ func (s *RankingServiceImpl) GetCompetitionRankingList(ctx context.Context, comp
 	return rankings, int(total), nil
 }
 
+// UpdateUserScore 更新用户分数
 func (s *RankingServiceImpl) UpdateUserScore(ctx context.Context, competitionID, problemID, userID uint64, isAccepted bool, submissionTime time.Time) error {
 	userIDStr := strconv.FormatUint(userID, 10)
 	userDetailKey := fmt.Sprintf(UserDetailKey, userIDStr, competitionID)
@@ -199,6 +212,7 @@ func (s *RankingServiceImpl) UpdateUserScore(ctx context.Context, competitionID,
 	return nil
 }
 
+// InitCompetitionRanking 初始化比赛排行榜
 func (s *RankingServiceImpl) InitCompetitionRanking(ctx context.Context, competitionID uint64) error {
 	rankingKey := fmt.Sprintf(RankingKey, competitionID)
 
@@ -229,6 +243,7 @@ func (s *RankingServiceImpl) calculateScore(totalAccepted int, totalTimeUsed int
 	return float64(int64(totalAccepted)*ScoreMultiplier - totalTimeUsed)
 }
 
+// GetFastestSolverList 获取最快通过每道题的用户
 func (s *RankingServiceImpl) GetFastestSolverList(ctx context.Context, competitionID uint64, problemIDs []uint64) []model.FastestSolver {
 	res := make([]model.FastestSolver, 0, len(problemIDs))
 	for _, problemID := range problemIDs {
@@ -253,4 +268,18 @@ func (s *RankingServiceImpl) GetFastestSolverList(ctx context.Context, competiti
 	}
 
 	return res
+}
+
+// Export 导出排行榜
+func (s *RankingServiceImpl) Export(ctx context.Context, competitionID uint64, exporter factory.RankingExporterType) error {
+	exp := s.exporterFactory.GetRankingExporter(exporter)
+	if exp == nil {
+		return fmt.Errorf("get ranking exporter failed: exporter not found")
+	}
+	file, err := os.Create(fmt.Sprintf("%d.%s", competitionID, exporter))
+	if err != nil {
+		return fmt.Errorf("create file failed: %w", err)
+	}
+	defer file.Close()
+	return exp.Export(ctx, competitionID, file)
 }
