@@ -27,8 +27,8 @@ type RankingService interface {
 	InitCompetitionRanking(ctx context.Context, competitionID uint64) error
 	// GetFastestSolverList 获取最快通过每道题的用户
 	GetFastestSolverList(ctx context.Context, competitionID uint64, problemIDs []uint64) []model.FastestSolver
-	// Export 导出比赛排行榜
-	Export(ctx context.Context, competitionID uint64, exporter factory.RankingExporterType) error
+	// Export 导出数据
+	Export(ctx context.Context, competitionID uint64, exporter factory.ExporterType) error
 }
 
 // RankingServiceImpl 排行榜服务实现, 实时排行榜强依赖 Redis, 暂无 Redis 重建数据功能
@@ -36,7 +36,7 @@ type RankingServiceImpl struct {
 	db              *gorm.DB
 	rdb             redis.Cmdable
 	log             loggerv2.Logger
-	exporterFactory *factory.RankingExporterFactory
+	exporterFactory *factory.ExporterFactory
 }
 
 var _ RankingService = (*RankingServiceImpl)(nil)
@@ -46,7 +46,7 @@ func NewRankingService(db *gorm.DB, rdb redis.Cmdable, log loggerv2.Logger) Rank
 		db:              db,
 		rdb:             rdb,
 		log:             log,
-		exporterFactory: factory.NewRankingExporterFactory(db, log),
+		exporterFactory: factory.NewExporterFactory(db, log),
 	}
 }
 
@@ -270,13 +270,13 @@ func (s *RankingServiceImpl) GetFastestSolverList(ctx context.Context, competiti
 	return res
 }
 
-// Export 导出排行榜
-func (s *RankingServiceImpl) Export(ctx context.Context, competitionID uint64, exporter factory.RankingExporterType) error {
-	exp := s.exporterFactory.GetRankingExporter(exporter)
+// Export 导出数据
+func (s *RankingServiceImpl) Export(ctx context.Context, competitionID uint64, exporter factory.ExporterType) error {
+	exp := s.exporterFactory.GetExporter(exporter)
 	if exp == nil {
-		return fmt.Errorf("get ranking exporter failed: exporter not found")
+		return fmt.Errorf("get exporter failed: exporter not found")
 	}
-	file, err := os.Create(fmt.Sprintf("%d.%s", competitionID, exporter))
+	file, err := os.Create(fmt.Sprintf("%d%s", competitionID, factory.ExporterSuffixMap[exporter]))
 	if err != nil {
 		return fmt.Errorf("create file failed: %w", err)
 	}

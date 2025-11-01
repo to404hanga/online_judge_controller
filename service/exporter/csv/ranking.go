@@ -21,9 +21,9 @@ type StreamableCSVRankingExporter struct {
 	db  *gorm.DB
 }
 
-var _ exporter.RankingExporter = (*StreamableCSVRankingExporter)(nil)
+var _ exporter.Exporter = (*StreamableCSVRankingExporter)(nil)
 
-func NewStreamableCSVRankingExporter(db *gorm.DB, log loggerv2.Logger) *StreamableCSVRankingExporter {
+func NewStreamableCSVRankingExporter(db *gorm.DB, log loggerv2.Logger) exporter.Exporter {
 	return &StreamableCSVRankingExporter{
 		db:  db,
 		log: log,

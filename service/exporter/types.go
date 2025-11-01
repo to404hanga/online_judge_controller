@@ -5,6 +5,6 @@ import (
 	"io"
 )
 
-type RankingExporter interface {
+type Exporter interface {
 	Export(ctx context.Context, competitionID uint64, writer io.Writer) error
 }

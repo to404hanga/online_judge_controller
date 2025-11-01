@@ -21,9 +21,9 @@ type StreamableXLSXRankingExporter struct {
 	db  *gorm.DB
 }
 
-var _ exporter.RankingExporter = (*StreamableXLSXRankingExporter)(nil)
+var _ exporter.Exporter = (*StreamableXLSXRankingExporter)(nil)
 
-func NewStreamableXLSXRankingExporter(db *gorm.DB, log loggerv2.Logger) *StreamableXLSXRankingExporter {
+func NewStreamableXLSXRankingExporter(db *gorm.DB, log loggerv2.Logger) exporter.Exporter {
 	return &StreamableXLSXRankingExporter{
 		db:  db,
 		log: log,
