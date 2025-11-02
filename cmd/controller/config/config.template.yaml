@@ -1,0 +1,77 @@
+db:
+  host: "localhost"
+  port: 3306
+  username: "oj"
+  password: "123456"
+  dbname: "online_judge"
+  tablePrefix: ""
+  # 连接池配置
+  maxOpenConns: 100      # 最大打开连接数
+  maxIdleConns: 10       # 最大空闲连接数
+  connMaxLifetime: 60    # 连接最大生存时间（分钟）
+  connMaxIdleTime: 10    # 连接最大空闲时间（分钟）
+
+log:
+  development: true
+  type: 1 # 0-控制台, 1-文件, 2-控制台+文件
+  logFilePath: "./log/gateway.log"
+  autoCreateFile: true
+
+gin:
+  allowOrigins:
+    - "*"
+  allowMethods:
+    - "GET"
+    - "POST"
+    - "PUT"
+    - "DELETE"
+    - "OPTIONS"
+  allowHeaders:
+    - "Content-Type"
+    - "Authorization"
+    - "X-JWT-Token"
+    - "X-Refresh-Token"
+    - "X-Competition-JWT-Token"
+    - "X-Competition-Refresh-Token"
+  exposeHeaders:
+    - "X-JWT-Token"
+    - "X-Refresh-Token"
+    - "X-Competition-JWT-Token"
+    - "X-Competition-Refresh-Token"
+  allowCredentials: false
+  maxAge: 3600 # 单位: 秒
+  checkCompetitionPath:
+    - "/GetCompetitionProblemListWithPresignedURL"
+    - "/GetCompetitionRankingList"
+    - "/GetCompetitionFastestSolverList"
+    - "/GetSubmissionUploadPresignedURL"
+    - "/SubmitCompetitionProblem"
+    - "/GetSubmissionDownloadPresignedURL"
+    - "/GetLatestSubmission"
+  addr: ":8080"
+
+redis:
+  host: "localhost"
+  port: 6379
+  password: ""
+  db: 0
+
+jwt:
+  jwtExpiration: 4320 # 3 天, 单位: 分钟
+  refreshExpiration: 10080 # 7 天, 单位: 分钟
+  jwtKey: "a7f3e9d2c8b4f1a6e5d8c3b7f2a9e6d1c4b8f5a2e7d3c9b6f1a4e8d2c5b9f3a6" # 64 位随机字符串
+  refreshKey: "e1d4c7b2f8a5e9d3c6b1f4a7e2d5c8b3f6a9e4d7c1b5f2a8e6d9c3b7f1a4e8d2" # 64 位随机字符串
+
+minio:
+  endpoint: "localhost:9000"
+  useSSL: false
+  configs:
+    problem:
+      problemBucket: "problem"
+      testcaseBucket: "testcase"
+      uploadDurationSeconds: 600
+      downloadDurationSeconds: 21600 # 6 小时
+    submission:
+      bucket: "submission"
+      uploadDurationSeconds: 60
+      downloadDurationSeconds: 60
