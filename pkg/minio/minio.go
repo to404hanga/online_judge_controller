@@ -19,7 +19,7 @@ type MinIOService struct {
 	useSSL   bool
 }
 
-func NewMinIOSTSService(log loggerv2.Logger, endpoint string, useSSL bool) *MinIOService {
+func NewMinIOService(log loggerv2.Logger, endpoint string, useSSL bool) *MinIOService {
 	client, err := minio.New(endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(os.Getenv(EnvMinIOAccessKeyID), os.Getenv(EnvMinIOSecretAccessKey), ""),
 		Secure: useSSL,
