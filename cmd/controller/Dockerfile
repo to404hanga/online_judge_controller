@@ -10,6 +10,10 @@ RUN apk add --no-cache git ca-certificates tzdata
 # 复制go.mod和go.sum文件
 COPY go.mod go.sum ./
 
+# 设置Go代理（使用国内镜像源）
+ENV GOPROXY=https://goproxy.cn,direct
+ENV GOSUMDB=sum.golang.google.cn
+
 # 下载依赖
 RUN go mod download
 

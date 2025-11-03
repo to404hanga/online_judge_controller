@@ -13,6 +13,10 @@ import (
 	"github.com/to404hanga/online_judge_controller/web"
 )
 
+import (
+	_ "net/http/pprof"
+)
+
 // Injectors from wire.go:
 
 func BuildDependency() *web.GinServer {
@@ -28,6 +32,7 @@ func BuildDependency() *web.GinServer {
 	problemHandler := ioc.InitProblemHandler(problemService, minIOService, logger)
 	submissionService := service.NewSubmissionService(db, cmdable, logger)
 	submissionHandler := ioc.InitSubmissionHandler(submissionService, minIOService, competitionService, logger)
-	ginServer := ioc2.InitGinServer(logger, handler, db, competitionHandler, problemHandler, submissionHandler)
+	healthHandler := web.NewHealthHandler(logger)
+	ginServer := ioc2.InitGinServer(logger, handler, db, competitionHandler, problemHandler, submissionHandler, healthHandler)
 	return ginServer
 }

@@ -25,6 +25,7 @@ func BuildDependency() *web.GinServer {
 		ioc.InitRankingService,
 
 		web.NewCompetitionHandler,
+		web.NewHealthHandler,
 		commonioc.InitProblemHandler,
 		commonioc.InitSubmissionHandler,
 

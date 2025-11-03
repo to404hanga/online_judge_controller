@@ -14,7 +14,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func InitGinServer(l loggerv2.Logger, jwtHandler jwt.Handler, db *gorm.DB, competitionHandler *web.CompetitionHandler, problemHandler *web.ProblemHandler, submissionHandler *web.SubmissionHandler) *web.GinServer {
+func InitGinServer(l loggerv2.Logger, jwtHandler jwt.Handler, db *gorm.DB, competitionHandler *web.CompetitionHandler, problemHandler *web.ProblemHandler, submissionHandler *web.SubmissionHandler, healthHandler *web.HealthHandler) *web.GinServer {
 	var cfg config.GinConfig
 	err := viper.UnmarshalKey(cfg.Key(), &cfg)
 	if err != nil {
@@ -39,6 +39,7 @@ func InitGinServer(l loggerv2.Logger, jwtHandler jwt.Handler, db *gorm.DB, compe
 	competitionHandler.Register(engine)
 	problemHandler.Register(engine)
 	submissionHandler.Register(engine)
+	healthHandler.Register(engine)
 
 	return &web.GinServer{
 		Engine: engine,
