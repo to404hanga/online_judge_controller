@@ -2,6 +2,7 @@ package ioc
 
 import (
 	"log"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -19,6 +20,11 @@ func InitGinServer(l loggerv2.Logger, jwtHandler jwt.Handler, db *gorm.DB, compe
 	err := viper.UnmarshalKey(cfg.Key(), &cfg)
 	if err != nil {
 		log.Panicf("unmarshal gin config failed, err: %v", err)
+	}
+
+	// 优先使用环境变量中设置的服务端口
+	if port := os.Getenv("SERVER_PORT"); port != "" {
+		cfg.Addr = ":" + port
 	}
 
 	corsBuilder := middleware.NewCORSMiddlewareBuilder(

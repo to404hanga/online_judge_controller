@@ -45,7 +45,7 @@ COPY cmd/controller/config/config.yaml ./config/
 RUN mkdir -p log
 
 # 暴露端口（根据config.yaml中的gin.addr配置）
-EXPOSE 8080
+EXPOSE ${SERVER_PORT:-8080}
 
 # 设置环境变量
 ENV GIN_MODE=release
