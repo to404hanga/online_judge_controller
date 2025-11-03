@@ -14,7 +14,7 @@ db:
 log:
   development: true
   type: 1 # 0-控制台, 1-文件, 2-控制台+文件
-  logFilePath: "./log/gateway.log"
+  logFilePath: "./log/controller.log"
   autoCreateFile: true
 
 gin:
