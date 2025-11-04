@@ -4,13 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	json "github.com/bytedance/sonic"
 	"github.com/redis/go-redis/v9"
 	ojmodel "github.com/to404hanga/online_judge_common/model"
 	"github.com/to404hanga/online_judge_controller/model"
 	"github.com/to404hanga/online_judge_controller/pkg/pointer"
-	"github.com/to404hanga/pkg404/gotools/retry"
-	"github.com/to404hanga/pkg404/logger"
 	loggerv2 "github.com/to404hanga/pkg404/logger/v2"
 	"gorm.io/gorm"
 )
@@ -20,8 +17,8 @@ type SubmissionService interface {
 	SubmitCompetitionProblem(ctx context.Context, param *model.SubmitCompetitionProblemParam) error
 	// // GetSubmissionList 获取比赛题目提交列表
 	// GetSubmissionList(ctx context.Context, param *model.GetSubmissionListParam) ([]model.Submission, error)
-	// PublishJudgeTask 发布判题任务到 Redis Stream
-	PublishJudgeTask(ctx context.Context, task *JudgeTask) error
+	// // PublishJudgeTask 发布判题任务到 Redis Stream
+	// PublishJudgeTask(ctx context.Context, task *JudgeTask) error
 	// GetLatestSubmission 获取最新提交记录
 	GetLatestSubmission(ctx context.Context, competitionID, problemID, userID uint64) (*ojmodel.Submission, error)
 	// GetSubmissionByID 获取提交记录
@@ -59,22 +56,22 @@ func (s *SubmissionServiceImpl) SubmitCompetitionProblem(ctx context.Context, pa
 		return fmt.Errorf("SubmitCompetitionProblem failed at create submission: %w", err)
 	}
 
-	// 后台异步发布判题任务, 失败时重试
-	// 重试到失败也不关心, 判题集群 master 会定时扫描仍未开始判题的任务
-	redisCtx := loggerv2.ContextWithFields(ctx, logger.Uint64("submission_id", submission.ID))
-	go func() {
-		err = retry.Do(redisCtx, func() error {
-			return s.PublishJudgeTask(redisCtx, &JudgeTask{
-				SubmiisionID: submission.ID,
-				CodeURL:      submission.CodeURL,
-				Language:     submission.Language.Int8(),
-				CreatedAt:    submission.CreatedAt.UnixNano(),
-			})
-		})
-		if err != nil {
-			s.log.WarnContext(redisCtx, "PublishJudgeTask failed", logger.Error(err))
-		}
-	}()
+	// // 后台异步发布判题任务, 失败时重试
+	// // 重试到失败也不关心, 判题集群 master 会定时扫描仍未开始判题的任务
+	// redisCtx := loggerv2.ContextWithFields(ctx, logger.Uint64("submission_id", submission.ID))
+	// go func() {
+	// 	err = retry.Do(redisCtx, func() error {
+	// 		return s.PublishJudgeTask(redisCtx, &JudgeTask{
+	// 			SubmiisionID: submission.ID,
+	// 			CodeURL:      submission.CodeURL,
+	// 			Language:     submission.Language.Int8(),
+	// 			CreatedAt:    submission.CreatedAt.UnixNano(),
+	// 		})
+	// 	})
+	// 	if err != nil {
+	// 		s.log.WarnContext(redisCtx, "PublishJudgeTask failed", logger.Error(err))
+	// 	}
+	// }()
 
 	return nil
 }
@@ -118,31 +115,31 @@ const (
 	JudgeTaskGroup  = "judge:consumer" // 消费者组名称
 )
 
-// PublishJudgeTask 发布判题任务到 Redis Stream
-func (s *SubmissionServiceImpl) PublishJudgeTask(ctx context.Context, task *JudgeTask) error {
-	taskData, err := json.Marshal(task)
-	if err != nil {
-		return fmt.Errorf("PublishJudgeTask failed at marshal task: %w", err)
-	}
+// // PublishJudgeTask 发布判题任务到 Redis Stream
+// func (s *SubmissionServiceImpl) PublishJudgeTask(ctx context.Context, task *JudgeTask) error {
+// 	taskData, err := json.Marshal(task)
+// 	if err != nil {
+// 		return fmt.Errorf("PublishJudgeTask failed at marshal task: %w", err)
+// 	}
 
-	args := &redis.XAddArgs{
-		Stream: JudgeTaskStream,
-		Values: map[string]any{
-			"task": string(taskData),
-		},
-	}
+// 	args := &redis.XAddArgs{
+// 		Stream: JudgeTaskStream,
+// 		Values: map[string]any{
+// 			"task": string(taskData),
+// 		},
+// 	}
 
-	messageID, err := s.rdb.XAdd(ctx, args).Result()
-	if err != nil {
-		return fmt.Errorf("PublishJudgeTask failed at xadd task: %w", err)
-	}
+// 	messageID, err := s.rdb.XAdd(ctx, args).Result()
+// 	if err != nil {
+// 		return fmt.Errorf("PublishJudgeTask failed at xadd task: %w", err)
+// 	}
 
-	s.log.InfoContext(ctx, "PublishJudgeTask success",
-		logger.String("message_id", messageID),
-		logger.String("stream", JudgeTaskStream),
-	)
-	return nil
-}
+// 	s.log.InfoContext(ctx, "PublishJudgeTask success",
+// 		logger.String("message_id", messageID),
+// 		logger.String("stream", JudgeTaskStream),
+// 	)
+// 	return nil
+// }
 
 func (s *SubmissionServiceImpl) GetLatestSubmission(ctx context.Context, competitionID, problemID, userID uint64) (*ojmodel.Submission, error) {
 	var submission ojmodel.Submission
