@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/robfig/cron/v3"
-	"github.com/to404hanga/online_judge_controller/pkg/minio"
-	"github.com/to404hanga/online_judge_controller/service"
 	"github.com/to404hanga/pkg404/logger"
 	loggerv2 "github.com/to404hanga/pkg404/logger/v2"
 )
@@ -49,14 +47,10 @@ type CronScheduler struct {
 	ctx         context.Context
 	cancel      context.CancelFunc
 	mu          sync.RWMutex
-
-	// 依赖服务
-	minioSvc   *minio.MinIOService
-	problemSvc service.ProblemService
 }
 
 // NewCronScheduler 创建新的cron调度器
-func NewCronScheduler(minioSvc *minio.MinIOService, problemSvc service.ProblemService, log loggerv2.Logger) *CronScheduler {
+func NewCronScheduler(log loggerv2.Logger) *CronScheduler {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// 创建cron实例，支持秒级精度
@@ -69,12 +63,7 @@ func NewCronScheduler(minioSvc *minio.MinIOService, problemSvc service.ProblemSe
 		log:         log,
 		ctx:         ctx,
 		cancel:      cancel,
-		minioSvc:    minioSvc,
-		problemSvc:  problemSvc,
 	}
-
-	// 注册默认任务
-	// scheduler.registerDefaultJobs()
 
 	return scheduler
 }

@@ -16,26 +16,26 @@ const (
 	TestcaseKey = "testcase"
 )
 
-// MinIOProblemCleaner 清理 minio 中的题目相关文件
-type MinIOProblemCleaner struct {
+// MinIOCleaner 清理 minio 中的相关文件
+type MinIOCleaner struct {
 	problemSvc          service.ProblemService
 	minioSvc            *minio.MinIOService
 	log                 loggerv2.Logger
-	orphanBuckets       map[string]string
+	bucket              string
 	orphanFileCheckDays int
 }
 
-func NewMinIOProblemCleaner(problemSvc service.ProblemService, minioSvc *minio.MinIOService, log loggerv2.Logger, orphanBuckets map[string]string, orphanFileCheckDays int) *MinIOProblemCleaner {
-	return &MinIOProblemCleaner{
+func NewMinIOCleaner(problemSvc service.ProblemService, minioSvc *minio.MinIOService, log loggerv2.Logger, bucket string, orphanFileCheckDays int) *MinIOCleaner {
+	return &MinIOCleaner{
 		problemSvc:          problemSvc,
 		minioSvc:            minioSvc,
 		log:                 log,
-		orphanBuckets:       orphanBuckets,
+		bucket:              bucket,
 		orphanFileCheckDays: orphanFileCheckDays,
 	}
 }
 
-func (c *MinIOProblemCleaner) RunCleanup(ctx context.Context) error {
+func (c *MinIOCleaner) RunCleanup(ctx context.Context) error {
 	c.log.InfoContext(ctx, "Starting minio problem cleanup job")
 
 	orphanStats, err := c.cleanupOrphanFiles(ctx)
@@ -58,7 +58,7 @@ type CleanupStats struct {
 	EndTime         time.Time     `json:"end_time"`
 }
 
-func (c *MinIOProblemCleaner) cleanupOrphanFiles(ctx context.Context) (stats *CleanupStats, err error) {
+func (c *MinIOCleaner) cleanupOrphanFiles(ctx context.Context) (stats *CleanupStats, err error) {
 	stats = &CleanupStats{
 		StartTime: time.Now(),
 	}
@@ -69,63 +69,53 @@ func (c *MinIOProblemCleaner) cleanupOrphanFiles(ctx context.Context) (stats *Cl
 
 	cutoffTime := time.Now().AddDate(0, 0, -c.orphanFileCheckDays)
 
-	for key, bucket := range c.orphanBuckets {
-		var checkExistFunc func(context.Context, string) (bool, error)
-		if key == TestcaseKey {
-			checkExistFunc = c.problemSvc.CheckExistByTestcaseZipURL
-		} else {
-			c.log.WarnContext(ctx, "Unknown bucket key", logger.String("key", key))
+	// 列出存储桶中所有对象
+	infos, err := c.minioSvc.ListObjectsWithDetails(ctx, c.bucket)
+	if err != nil {
+		c.log.ErrorContext(ctx, "ListObjectsWithDetails failed", logger.Error(err))
+		stats.ErrorCount++
+		return
+	}
+
+	for _, obj := range infos {
+		// 跳过临时文件和系统文件
+		if isTempFile(obj.Key) || isSystemFile(obj.Key) {
 			continue
 		}
 
-		// 列出存储桶中所有对象
-		infos, err := c.minioSvc.ListObjectsWithDetails(ctx, bucket)
-		if err != nil {
-			c.log.ErrorContext(ctx, "ListObjectsWithDetails failed", logger.Error(err))
+		// 只检查超过指定天数的文件
+		if obj.LastModified.After(cutoffTime) {
+			continue
+		}
+
+		if exist, err := c.problemSvc.CheckExistByTestcaseZipURL(ctx, obj.Key); err != nil {
+			c.log.ErrorContext(ctx, "CheckExist failed",
+				logger.Error(err),
+				logger.String("object_key", obj.Key),
+				logger.String("bucket", c.bucket),
+			)
+			stats.ErrorCount++
+			continue
+		} else if exist {
+			continue
+		}
+
+		c.log.InfoContext(ctx, "Object not exist",
+			logger.String("object_key", obj.Key),
+			logger.String("bucket", c.bucket),
+		)
+
+		if err = c.minioSvc.DeleteObject(ctx, c.bucket, obj.Key); err != nil {
+			c.log.ErrorContext(ctx, "DeleteObject failed",
+				logger.Error(err),
+				logger.String("object_key", obj.Key),
+				logger.String("bucket", c.bucket),
+			)
 			stats.ErrorCount++
 			continue
 		}
-
-		for _, obj := range infos {
-			// 跳过临时文件和系统文件
-			if isTempFile(obj.Key) || isSystemFile(obj.Key) {
-				continue
-			}
-
-			// 只检查超过指定天数的文件
-			if obj.LastModified.After(cutoffTime) {
-				continue
-			}
-
-			if exist, err := checkExistFunc(ctx, obj.Key); err != nil {
-				c.log.ErrorContext(ctx, "CheckExist failed",
-					logger.Error(err),
-					logger.String("object_key", obj.Key),
-					logger.String("bucket", bucket),
-				)
-				stats.ErrorCount++
-				continue
-			} else if exist {
-				continue
-			}
-
-			c.log.InfoContext(ctx, "Object not exist",
-				logger.String("object_key", obj.Key),
-				logger.String("bucket", bucket),
-			)
-
-			if err = c.minioSvc.DeleteObject(ctx, bucket, obj.Key); err != nil {
-				c.log.ErrorContext(ctx, "DeleteObject failed",
-					logger.Error(err),
-					logger.String("object_key", obj.Key),
-					logger.String("bucket", bucket),
-				)
-				stats.ErrorCount++
-				continue
-			}
-			stats.DeletedFiles++
-			stats.DeletedSize += obj.Size
-		}
+		stats.DeletedFiles++
+		stats.DeletedSize += obj.Size
 	}
 	return stats, nil
 }

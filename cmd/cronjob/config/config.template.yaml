@@ -1,0 +1,45 @@
+db:
+  host: "localhost"
+  port: 3306
+  username: "oj"
+  password: "123456"
+  database: "online_judge"
+  tablePrefix: ""
+  # 连接池配置
+  maxOpenConns: 100      # 最大打开连接数
+  maxIdleConns: 10       # 最大空闲连接数
+  connMaxLifetime: 60    # 连接最大生存时间（分钟）
+  connMaxIdleTime: 10    # 连接最大空闲时间（分钟）
+
+log:
+  development: true
+  type: 1 # 0-控制台, 1-文件, 2-控制台+文件
+  logFilePath: "./log/controller.log"
+  autoCreateFile: true
+
+minio:
+  endpoint: "localhost:9000"
+  useSSL: false
+  configs:
+    problem:
+      problemBucket: "problem"
+      testcaseBucket: "testcase"
+      uploadDurationSeconds: 600
+      downloadDurationSeconds: 21600 # 6 小时
+    submission:
+      bucket: "submission"
+      uploadDurationSeconds: 60
+      downloadDurationSeconds: 60
+
+minIOCleaner:
+  cronExpr: "0 0 * * * *" # 每天凌晨 0 点执行
+  enabled: true
+  timeout: 10000 # 10 秒
+  bucket: "testcase"
+  orphanFileCheckDays: 7
+
+submissionCleaner:
+  cronExpr: "0 0 * * * *" # 每天凌晨 0 点执行
+  enabled: true
+  timeout: 10000 # 10 秒
+  timeRange: 1 # 1 天

@@ -9,13 +9,13 @@ import (
 )
 
 type SubmissionCleaner struct {
-	submissionSvc service.SubmissionServiceImpl
+	submissionSvc service.SubmissionService
 	log           loggerv2.Logger
 	timeRange     time.Duration
 }
 
 // NewSubmissionCleaner 创建新的提交清理器
-func NewSubmissionCleaner(submissionSvc service.SubmissionServiceImpl, log loggerv2.Logger, timeRange time.Duration) *SubmissionCleaner {
+func NewSubmissionCleaner(submissionSvc service.SubmissionService, log loggerv2.Logger, timeRange time.Duration) *SubmissionCleaner {
 	return &SubmissionCleaner{
 		submissionSvc: submissionSvc,
 		log:           log,
