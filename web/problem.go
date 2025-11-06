@@ -1,6 +1,8 @@
 package web
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -40,14 +42,25 @@ func NewProblemHandler(problemSvc service.ProblemService, minioSvc *minio.MinIOS
 func (h *ProblemHandler) Register(r *gin.Engine) {
 	r.POST(constants.CreateProblemPath, gintool.WrapHandler(h.CreateProblem, h.log))
 	r.PUT(constants.UpdateProblemPath, gintool.WrapHandler(h.UpdateProblem, h.log))
-	r.GET(constants.GetProblemUploadPresignedURLPath, gintool.WrapHandler(h.GetProblemUploadPresignedURL, h.log))
-	r.GET(constants.GetProblemDownloadPresignedURLPath, gintool.WrapHandler(h.GetProblemDownloadPresignedURL, h.log))
 	r.GET(constants.GetProblemTestcaseUploadPresignedURLPath, gintool.WrapHandler(h.GetProblemTestcaseUploadPresignedURL, h.log))
 	r.GET(constants.GetProblemTestcaseDownloadPresignedURLPath, gintool.WrapHandler(h.GetProblemTestcaseDownloadPresignedURL, h.log))
 	r.GET(constants.GetProblemListPath, gintool.WrapHandler(h.GetProblemList, h.log))
 }
 
 func (h *ProblemHandler) CreateProblem(c *gin.Context, param *model.CreateProblemParam) {
+	// 计算 Description 的 SHA256 哈希
+	hash := sha256.Sum256([]byte(param.Description))
+	hashStr := hex.EncodeToString(hash[:])
+
+	// 与传入的 DescriptionHash 进行比对
+	if hashStr != param.DescriptionHash {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusBadRequest,
+			Message: "description hash mismatch",
+		})
+		return
+	}
+
 	err := h.problemSvc.CreateProblem(c.Request.Context(), param)
 	if err != nil {
 		gintool.GinResponse(c, &gintool.Response{
@@ -65,6 +78,29 @@ func (h *ProblemHandler) CreateProblem(c *gin.Context, param *model.CreateProble
 }
 
 func (h *ProblemHandler) UpdateProblem(c *gin.Context, param *model.UpdateProblemParam) {
+	if param.Description != nil {
+		if param.DescriptionHash == nil {
+			gintool.GinResponse(c, &gintool.Response{
+				Code:    http.StatusBadRequest,
+				Message: "description hash is required",
+			})
+			return
+		}
+
+		// 计算 Description 的 SHA256 哈希
+		hash := sha256.Sum256([]byte(*param.Description))
+		hashStr := hex.EncodeToString(hash[:])
+
+		// 与传入的 DescriptionHash 进行比对
+		if hashStr != *param.DescriptionHash {
+			gintool.GinResponse(c, &gintool.Response{
+				Code:    http.StatusBadRequest,
+				Message: "description hash mismatch",
+			})
+			return
+		}
+	}
+
 	err := h.problemSvc.UpdateProblem(c.Request.Context(), param)
 	if err != nil {
 		gintool.GinResponse(c, &gintool.Response{
@@ -78,60 +114,6 @@ func (h *ProblemHandler) UpdateProblem(c *gin.Context, param *model.UpdateProble
 	gintool.GinResponse(c, &gintool.Response{
 		Code:    http.StatusOK,
 		Message: "success",
-	})
-}
-
-func (h *ProblemHandler) GetProblemUploadPresignedURL(c *gin.Context, param *model.GetProblemUploadPresignedURLParam) {
-	ctx := loggerv2.ContextWithFields(c.Request.Context(), logger.String("hash", param.Hash))
-
-	presignedURL, err := h.minioSvc.GetPresignedUploadURL(ctx, h.problemBucket, param.Hash, h.uploadDurationSeconds)
-	if err != nil {
-		gintool.GinResponse(c, &gintool.Response{
-			Code:    http.StatusInternalServerError,
-			Message: err.Error(),
-		})
-		h.log.ErrorContext(ctx, "GetProblemUploadPresignedURL failed", logger.Error(err))
-		return
-	}
-
-	gintool.GinResponse(c, &gintool.Response{
-		Code:    http.StatusOK,
-		Message: "success",
-		Data: &model.GetProblemUploadPresignedURLResponse{
-			PresignedURL: presignedURL,
-		},
-	})
-}
-
-func (h *ProblemHandler) GetProblemDownloadPresignedURL(c *gin.Context, param *model.GetProblemDownloadPresignedURLParam) {
-	ctx := loggerv2.ContextWithFields(c.Request.Context(), logger.Uint64("problem_id", param.ProblemID))
-
-	problem, err := h.problemSvc.GetProblemByID(ctx, param.ProblemID)
-	if err != nil {
-		gintool.GinResponse(c, &gintool.Response{
-			Code:    http.StatusInternalServerError,
-			Message: err.Error(),
-		})
-		h.log.ErrorContext(ctx, "GetProblemDownloadPresignedURL failed", logger.Error(err))
-		return
-	}
-
-	presignedURL, err := h.minioSvc.GetPresignedDownloadURL(ctx, h.problemBucket, problem.DescriptionURL, h.downloadDurationSeconds)
-	if err != nil {
-		gintool.GinResponse(c, &gintool.Response{
-			Code:    http.StatusInternalServerError,
-			Message: err.Error(),
-		})
-		h.log.ErrorContext(ctx, "GetProblemDownloadPresignedURL failed", logger.Error(err))
-		return
-	}
-
-	gintool.GinResponse(c, &gintool.Response{
-		Code:    http.StatusOK,
-		Message: "success",
-		Data: &model.GetProblemDownloadPresignedURLResponse{
-			PresignedURL: presignedURL,
-		},
 	})
 }
 

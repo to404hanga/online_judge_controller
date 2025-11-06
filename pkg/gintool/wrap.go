@@ -15,7 +15,44 @@ import (
 func WrapHandler[T model.CommonParamInterface](h func(c *gin.Context, pType T), log loggerv2.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var param T
-		err := c.ShouldBindJSON(&param)
+		// 1) URI
+		if len(c.Params) > 0 {
+			if err := c.ShouldBindUri(&param); err != nil {
+				GinResponse(c, &Response{
+					Code:    http.StatusBadRequest,
+					Message: err.Error(),
+				})
+				log.ErrorContext(c.Request.Context(), "WrapHandler bind uri failed", logger.Error(err))
+				return
+			}
+		}
+
+		// 2) Header
+		err := c.ShouldBindHeader(&param)
+		if err != nil {
+			GinResponse(c, &Response{
+				Code:    http.StatusBadRequest,
+				Message: err.Error(),
+			})
+			log.ErrorContext(c.Request.Context(), "WrapHandler bind header failed", logger.Error(err))
+			return
+		}
+
+		// 3) Query/Form
+		if c.Request.URL != nil && c.Request.URL.RawQuery != "" {
+			err = c.ShouldBindQuery(&param)
+			if err != nil {
+				GinResponse(c, &Response{
+					Code:    http.StatusBadRequest,
+					Message: err.Error(),
+				})
+				log.ErrorContext(c.Request.Context(), "WrapHandler bind query failed", logger.Error(err))
+				return
+			}
+		}
+
+		// 4) JSON
+		err = c.ShouldBindJSON(&param)
 		if err != nil {
 			GinResponse(c, &Response{
 				Code:    http.StatusBadRequest,
@@ -62,7 +99,44 @@ func WrapWithoutBodyHandler[T model.CommonParamInterface](h func(c *gin.Context,
 func WrapCompetitionHandler[T model.CompetitionCommonParamInterface](h func(c *gin.Context, pType T), log loggerv2.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var param T
-		err := c.ShouldBindJSON(&param)
+		// 1) URI
+		if len(c.Params) > 0 {
+			if err := c.ShouldBindUri(&param); err != nil {
+				GinResponse(c, &Response{
+					Code:    http.StatusBadRequest,
+					Message: err.Error(),
+				})
+				log.ErrorContext(c.Request.Context(), "WrapCompetitionHandler bind uri failed", logger.Error(err))
+				return
+			}
+		}
+
+		// 2) Header
+		err := c.ShouldBindHeader(&param)
+		if err != nil {
+			GinResponse(c, &Response{
+				Code:    http.StatusBadRequest,
+				Message: err.Error(),
+			})
+			log.ErrorContext(c.Request.Context(), "WrapCompetitionHandler bind header failed", logger.Error(err))
+			return
+		}
+
+		// 3) Query/Form
+		if c.Request.URL != nil && c.Request.URL.RawQuery != "" {
+			err = c.ShouldBindQuery(&param)
+			if err != nil {
+				GinResponse(c, &Response{
+					Code:    http.StatusBadRequest,
+					Message: err.Error(),
+				})
+				log.ErrorContext(c.Request.Context(), "WrapCompetitionHandler bind query failed", logger.Error(err))
+				return
+			}
+		}
+
+		// 4) JSON
+		err = c.ShouldBindJSON(&param)
 		if err != nil {
 			GinResponse(c, &Response{
 				Code:    http.StatusBadRequest,

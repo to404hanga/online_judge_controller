@@ -3,10 +3,15 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
+	json "github.com/bytedance/sonic"
+	"github.com/redis/go-redis/v9"
 	ojmodel "github.com/to404hanga/online_judge_common/model"
 	"github.com/to404hanga/online_judge_controller/model"
 	"github.com/to404hanga/online_judge_controller/pkg/pointer"
+	"github.com/to404hanga/pkg404/gotools/retry"
+	"github.com/to404hanga/pkg404/logger"
 	loggerv2 "github.com/to404hanga/pkg404/logger/v2"
 	"gorm.io/gorm"
 )
@@ -16,8 +21,6 @@ type ProblemService interface {
 	CreateProblem(ctx context.Context, param *model.CreateProblemParam) error
 	// UpdateProblem 更新题目
 	UpdateProblem(ctx context.Context, param *model.UpdateProblemParam) error
-	// CheckExistByDescriptionURL 检查题目描述 URL 是否存在
-	CheckExistByDescriptionURL(ctx context.Context, descriptionURL string) (bool, error)
 	// CheckExistByTestcaseZipURL 检查测试用例压缩包 URL 是否存在
 	CheckExistByTestcaseZipURL(ctx context.Context, testcaseZipURL string) (bool, error)
 	// GetProblemByID 获取题目
@@ -26,16 +29,20 @@ type ProblemService interface {
 	GetProblemList(ctx context.Context, param *model.GetProblemListParam) ([]ojmodel.Problem, error)
 }
 
+const problemKey = "problem:%d"
+
 type ProblemServiceImpl struct {
 	db  *gorm.DB
+	rdb redis.Cmdable
 	log loggerv2.Logger
 }
 
 var _ ProblemService = (*ProblemServiceImpl)(nil)
 
-func NewProblemService(db *gorm.DB, log loggerv2.Logger) ProblemService {
+func NewProblemService(db *gorm.DB, rdb redis.Cmdable, log loggerv2.Logger) ProblemService {
 	return &ProblemServiceImpl{
 		db:  db,
+		rdb: rdb,
 		log: log,
 	}
 }
@@ -44,9 +51,9 @@ func NewProblemService(db *gorm.DB, log loggerv2.Logger) ProblemService {
 func (s *ProblemServiceImpl) CreateProblem(ctx context.Context, param *model.CreateProblemParam) error {
 	problem := ojmodel.Problem{
 		Title:          param.Title,
-		DescriptionURL: param.DescriptionURL,
+		Description:    param.Description,
 		TestcaseZipURL: param.TestcaseZipURL,
-		Visible:        pointer.ToPtr(ojmodel.ProblemVisible(param.Visible)),
+		Visible:        pointer.ToPtr(ojmodel.ProblemVisible(*param.Visible)),
 		TimeLimit:      param.TimeLimit,
 		MemoryLimit:    param.MemoryLimit,
 		CreatorID:      param.Operator,
@@ -67,8 +74,8 @@ func (s *ProblemServiceImpl) UpdateProblem(ctx context.Context, param *model.Upd
 	if param.Title != nil {
 		updates["title"] = *param.Title
 	}
-	if param.DescriptionURL != nil {
-		updates["description_url"] = *param.DescriptionURL
+	if param.Description != nil {
+		updates["description"] = *param.Description
 	}
 	if param.TestcaseZipURL != nil {
 		updates["testcase_zip_url"] = *param.TestcaseZipURL
@@ -94,21 +101,10 @@ func (s *ProblemServiceImpl) UpdateProblem(ctx context.Context, param *model.Upd
 		if err != nil {
 			return fmt.Errorf("UpdateProblem failed: %w", err)
 		}
+		s.rdb.Del(ctx, fmt.Sprintf(problemKey, param.ProblemID))
 	}
 
 	return nil
-}
-
-// CheckExistByDescriptionURL 检查题目描述 URL 是否存在
-func (s *ProblemServiceImpl) CheckExistByDescriptionURL(ctx context.Context, descriptionURL string) (bool, error) {
-	var count int64
-	err := s.db.WithContext(ctx).Model(&ojmodel.Problem{}).
-		Where("description_url = ?", descriptionURL).
-		Count(&count).Error
-	if err != nil {
-		return false, fmt.Errorf("CheckExistByDescriptionURL failed: %w", err)
-	}
-	return count > 0, nil
 }
 
 // CheckExistByTestcaseZipURL 检查测试用例压缩包 URL 是否存在
@@ -126,11 +122,58 @@ func (s *ProblemServiceImpl) CheckExistByTestcaseZipURL(ctx context.Context, tes
 // GetProblemByID 获取题目
 func (s *ProblemServiceImpl) GetProblemByID(ctx context.Context, problemID uint64) (*ojmodel.Problem, error) {
 	var problem ojmodel.Problem
-	err := s.db.WithContext(ctx).Model(&ojmodel.Problem{}).
+
+	key := fmt.Sprintf(problemKey, problemID)
+	problemBytes, err := s.rdb.Get(ctx, key).Bytes()
+	if err == nil {
+		if err = json.Unmarshal(problemBytes, &problem); err == nil {
+			return &problem, nil
+		}
+	}
+
+	s.log.WarnContext(ctx, "GetProblemByID from redis failed", logger.Error(err))
+
+	// 分布式锁，防止缓存击穿
+	lockKey := fmt.Sprintf("lock:problem:%d", problemID)
+	// 过期时间设置为 10s
+	ok, err := s.rdb.SetNX(ctx, lockKey, "locked", 10*time.Second).Result()
+	if err != nil {
+		return nil, fmt.Errorf("GetProblemByID failed to set lock: %w", err)
+	}
+
+	// 没有获得锁，说明有其他人在操作
+	if !ok {
+		// 等待 1s 后重试
+		time.Sleep(1 * time.Second)
+		return s.GetProblemByID(ctx, problemID)
+	}
+	defer retry.Do(ctx, func() error {
+		return s.rdb.Del(ctx, lockKey).Err()
+	}, retry.WithAsync(true), retry.WithCallback(func(err error) {
+		s.log.ErrorContext(ctx, "GetProblemByID: failed to delete lock", logger.Error(err))
+	}))
+
+	// 获得锁后，再次尝试从 redis 中获取
+	problemBytes, err = s.rdb.Get(ctx, key).Bytes()
+	if err == nil {
+		if err = json.Unmarshal(problemBytes, &problem); err == nil {
+			return &problem, nil
+		}
+	}
+	s.log.WarnContext(ctx, "GetProblemByID from redis recheck failed", logger.Error(err))
+
+	err = s.db.WithContext(ctx).Model(&ojmodel.Problem{}).
 		Where("id = ?", problemID).
 		First(&problem).Error
 	if err != nil {
 		return nil, fmt.Errorf("GetProblemByID failed: %w", err)
+	}
+
+	// 存入 redis
+	problemBytes, err = json.Marshal(problem)
+	if err == nil {
+		// 过期时间设置为 8h
+		s.rdb.Set(ctx, key, problemBytes, 8*time.Hour)
 	}
 	return &problem, nil
 }
@@ -159,14 +202,10 @@ func (s *ProblemServiceImpl) GetProblemList(ctx context.Context, param *model.Ge
 	} else {
 		query = query.Order("id ASC")
 	}
-	if param.PageSize > 0 {
-		query = query.Limit(param.PageSize)
-	}
-	if param.Page > 0 {
-		query = query.Offset((param.Page - 1) * param.PageSize)
-	}
 
-	err := query.Find(&problems).Error
+	err := query.Limit(param.PageSize).
+		Offset((param.Page - 1) * param.PageSize).
+		Find(&problems).Error
 	if err != nil {
 		return nil, fmt.Errorf("GetProblemList failed: %w", err)
 	}

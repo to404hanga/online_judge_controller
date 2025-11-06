@@ -40,22 +40,6 @@ type StartCompetitionParam struct {
 	CompetitionID uint64 `json:"competition_id" binding:"required"`
 }
 
-type ProblemWithPresignedURL struct {
-	ID           uint64 `json:"id" gorm:"id"`
-	Title        string `json:"title" gorm:"title"`
-	PresignedURL string `json:"presigned_url"`
-	TimeLimit    int    `json:"time_limit" gorm:"time_limit"`
-	MemoryLimit  int    `json:"memory_limit" gorm:"memory_limit"`
-}
-
-type GetCompetitionProblemListWithPresignedURLParam struct {
-	CompetitionCommonParam `json:"-"`
-}
-
-type GetCompetitionProblemListWithPresignedURLResponse struct {
-	Problems []ProblemWithPresignedURL `json:"problems"`
-}
-
 type GetCompetitionFastestSolverListParam struct {
 	CompetitionCommonParam `json:"-"`
 

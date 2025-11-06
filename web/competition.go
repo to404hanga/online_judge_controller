@@ -43,7 +43,6 @@ func (h *CompetitionHandler) Register(r *gin.Engine) {
 	r.PUT(constants.EnableCompetitionProblemPath, gintool.WrapHandler(h.EnableCompetitionProblem, h.log))
 	r.PUT(constants.DisableCompetitionProblemPath, gintool.WrapHandler(h.DisableCompetitionProblem, h.log))
 	r.POST(constants.StartCompetitionPath, gintool.WrapHandler(h.StartCompetition, h.log))
-	r.GET(constants.GetCompetitionProblemListWithPresignedURLPath, gintool.WrapCompetitionWithoutBodyHandler(h.GetCompetitionProblemListWithPresignedURL, h.log))
 	r.GET(constants.GetCompetitionRankingListPath, gintool.WrapCompetitionHandler(h.GetCompetitionRankingList, h.log))
 	r.GET(constants.GetCompetitionFastestSolverListPath, gintool.WrapCompetitionHandler(h.GetCompetitionFastestSolverList, h.log))
 	r.GET(constants.ExportCompetitionDataPath, gintool.WrapCompetitionHandler(h.ExportCompetitionData, h.log))
@@ -257,26 +256,6 @@ func (h *CompetitionHandler) StartCompetition(c *gin.Context, param *model.Start
 	gintool.GinResponse(c, &gintool.Response{
 		Code:    http.StatusOK,
 		Message: "success",
-	})
-}
-
-func (h *CompetitionHandler) GetCompetitionProblemListWithPresignedURL(c *gin.Context, param *model.GetCompetitionProblemListWithPresignedURLParam) {
-	ctx := loggerv2.ContextWithFields(c.Request.Context(),
-		logger.Uint64("competition_id", param.CompetitionID))
-
-	problems, err := h.competitionSvc.GetCompetitionProblemListWithPresignedURL(ctx, param.CompetitionID)
-	if err != nil {
-		gintool.GinResponse(c, &gintool.Response{
-			Code:    http.StatusInternalServerError,
-			Message: fmt.Sprintf("GetCompetitionProblemListWithPresignedURL failed: %s", err.Error()),
-		})
-		h.log.ErrorContext(ctx, "GetCompetitionProblemListWithPresignedURL failed", logger.Error(err))
-		return
-	}
-	gintool.GinResponse(c, &gintool.Response{
-		Code:    http.StatusOK,
-		Message: "success",
-		Data:    problems,
 	})
 }
 

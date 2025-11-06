@@ -7,51 +7,33 @@ import (
 type CreateProblemParam struct {
 	CommonParam `json:"-"`
 
-	Title          string `json:"title" binding:"required"`
-	DescriptionURL string `json:"description_url" binding:"required"`               // 题面的 oss url(去除固定前缀)
-	TestcaseZipURL string `json:"testcase_zip_url" binding:"required"`              // 测试用例的压缩包 oss url(去除固定前缀)
-	TimeLimit      int    `json:"time_limit" binding:"required,min=50,max=30000"`   // 测试用例的时间限制(单位：豪秒)
-	MemoryLimit    int    `json:"memory_limit" binding:"required,min=128,max=1024"` // 测试用例的内存限制(单位：MB)
-	Visible        int8   `json:"visible" binding:"required"`                       // 非比赛期间是否可见
+	Title           string `json:"title" binding:"required"`
+	Description     string `json:"description" binding:"required"`                   // 题面的描述
+	DescriptionHash string `header:"X-Description-Hash" binding:"required"`          // 题面的描述哈希值, 字母为小写
+	TestcaseZipURL  string `json:"testcase_zip_url" binding:"required"`              // 测试用例的压缩包 oss url(去除固定前缀)
+	TimeLimit       int    `json:"time_limit" binding:"required,min=50,max=30000"`   // 测试用例的时间限制(单位：豪秒)
+	MemoryLimit     int    `json:"memory_limit" binding:"required,min=128,max=1024"` // 测试用例的内存限制(单位：MB)
+	Visible         *int8  `json:"visible" binding:"required,oneof=0 1"`             // 非比赛期间是否可见
 }
 
 type UpdateProblemParam struct {
 	CommonParam `json:"-"`
 
-	ProblemID      uint64  `json:"problem_id" binding:"required"` // 题目 id
-	Title          *string `json:"title"`
-	DescriptionURL *string `json:"description_url"`                                   // 题面的 oss url(去除固定前缀)
-	TestcaseZipURL *string `json:"testcase_zip_url"`                                  // 测试用例的压缩包 oss url(去除固定前缀)
-	Status         *int8   `json:"status" binding:"omitempty,oneof=0 1 2"`            // 题目状态
-	TimeLimit      *int    `json:"time_limit" binding:"omitempty,min=50,max=30000"`   // 测试用例的时间限制(单位：豪秒)
-	MemoryLimit    *int    `json:"memory_limit" binding:"omitempty,min=128,max=1024"` // 测试用例的内存限制(单位：MB)
-	Visible        *int8   `json:"visible" binding:"omitempty,oneof=0 1"`             // 非比赛期间是否可见
-}
-
-type GetProblemUploadPresignedURLParam struct {
-	CommonParam `json:"-"`
-
-	Hash string `json:"hash" binding:"required"`
-}
-
-type GetProblemUploadPresignedURLResponse struct {
-	PresignedURL string `json:"presigned_url"`
-}
-
-type GetProblemDownloadPresignedURLParam struct {
-	CommonParam `json:"-"`
-
-	ProblemID uint64 `json:"problem_id" binding:"required"`
-}
-
-type GetProblemDownloadPresignedURLResponse struct {
-	PresignedURL string `json:"presigned_url"`
+	ProblemID       uint64  `json:"problem_id" binding:"required"` // 题目 id
+	Title           *string `json:"title"`
+	Description     *string `json:"description"`                                       // 题面的描述
+	DescriptionHash *string `header:"X-Description-Hash"`                              // 题面的描述哈希值, 字母为小写
+	TestcaseZipURL  *string `json:"testcase_zip_url"`                                  // 测试用例的压缩包 oss url(去除固定前缀)
+	Status          *int8   `json:"status" binding:"omitempty,oneof=0 1 2"`            // 题目状态
+	TimeLimit       *int    `json:"time_limit" binding:"omitempty,min=50,max=30000"`   // 测试用例的时间限制(单位：豪秒)
+	MemoryLimit     *int    `json:"memory_limit" binding:"omitempty,min=128,max=1024"` // 测试用例的内存限制(单位：MB)
+	Visible         *int8   `json:"visible" binding:"omitempty,oneof=0 1"`             // 非比赛期间是否可见
 }
 
 type GetProblemTestcaseUploadPresignedURLParam struct {
 	CommonParam `json:"-"`
 
-	Hash string `json:"hash" binding:"required"`
+	Hash string `header:"X-Testcase-Hash" binding:"required"`
 }
 
 type GetProblemTestcaseUploadPresignedURLResponse struct {
@@ -78,8 +60,8 @@ type GetProblemListParam struct {
 	TimeLimit   *int   `json:"time_limit"`
 	MemoryLimit *int   `json:"memory_limit"`
 
-	Page     int `json:"page"`
-	PageSize int `json:"page_size"`
+	Page     int `query:"page" binding:"required,min=1"`
+	PageSize int `query:"page_size" binding:"required,min=10,max=100"`
 }
 
 type GetProblemListResponse struct {

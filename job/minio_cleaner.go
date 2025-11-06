@@ -83,9 +83,7 @@ func (c *MinIOProblemCleaner) cleanupOrphanFiles(ctx context.Context) (stats *Cl
 
 	for key, bucket := range c.orphanBuckets {
 		var checkExistFunc func(context.Context, string) (bool, error)
-		if key == ProblemKey {
-			checkExistFunc = c.problemSvc.CheckExistByDescriptionURL
-		} else if key == TestcaseKey {
+		if key == TestcaseKey {
 			checkExistFunc = c.problemSvc.CheckExistByTestcaseZipURL
 		} else {
 			c.log.WarnContext(ctx, "Unknown bucket key", logger.String("key", key))

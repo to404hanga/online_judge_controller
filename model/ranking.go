@@ -3,8 +3,8 @@ package model
 type GetCompetitionRankingListParam struct {
 	CompetitionCommonParam `json:"-"`
 
-	Page     int `json:"page" binding:"required,min=1"`
-	PageSize int `json:"page_size" binding:"required,min=10,max=100"`
+	Page     int `query:"page" binding:"required,min=1"`
+	PageSize int `query:"page_size" binding:"required,min=10,max=100"`
 }
 
 type Problem struct {

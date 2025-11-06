@@ -41,42 +41,13 @@ func NewSubmissionHandler(minioSvc *minio.MinIOService, submissionSvc service.Su
 }
 
 func (h *SubmissionHandler) Register(r *gin.Engine) {
-	r.GET(constants.GetSubmissionUploadPresignedURLPath, gintool.WrapCompetitionHandler(h.GetSubmissionUploadPresignedURL, h.log))
 	r.POST(constants.SubmitCompetitionProblemPath, gintool.WrapCompetitionHandler(h.SubmitCompetitionProblem, h.log))
-	// r.GET(constants.GetSubmissionListPath, gintool.WrapHandler(h.GetSubmissionList, h.log))
-	r.GET(constants.GetSubmissionDownloadPresignedURLPath, gintool.WrapHandler(h.GetSubmissionDownloadPresignedURL, h.log))
 	r.GET(constants.GetLatestSubmissionPath, gintool.WrapCompetitionHandler(h.GetLatestSubmission, h.log))
-}
-
-func (h *SubmissionHandler) GetSubmissionUploadPresignedURL(c *gin.Context, param *model.GetSubmissionUploadPresignedURLParam) {
-	ctx := loggerv2.ContextWithFields(c.Request.Context(),
-		logger.Uint64("competition_id", param.CompetitionID),
-		logger.Uint64("problem_id", param.ProblemID),
-		logger.String("hash", param.Hash))
-
-	presignedURL, err := h.minioSvc.GetPresignedUploadURL(ctx, SubmissionBucket, param.Hash, h.uploadDurationSeconds)
-	if err != nil {
-		gintool.GinResponse(c, &gintool.Response{
-			Code:    http.StatusInternalServerError,
-			Message: err.Error(),
-		})
-		h.log.ErrorContext(ctx, "GetPresignedUploadURL failed", logger.Error(err))
-		return
-	}
-
-	gintool.GinResponse(c, &gintool.Response{
-		Code:    http.StatusOK,
-		Message: "success",
-		Data: model.GetSubmissionUploadPresignedURLResponse{
-			PresignedURL: presignedURL,
-		},
-	})
 }
 
 func (h *SubmissionHandler) SubmitCompetitionProblem(c *gin.Context, param *model.SubmitCompetitionProblemParam) {
 	ctx := loggerv2.ContextWithFields(c.Request.Context(),
 		logger.Uint64("competition_id", param.CompetitionID),
-		logger.String("url", param.URL),
 		logger.Uint64("problem_id", param.ProblemID),
 		logger.Int8("language", param.Language))
 
@@ -93,23 +64,6 @@ func (h *SubmissionHandler) SubmitCompetitionProblem(c *gin.Context, param *mode
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusForbidden,
 			Message: "不在比赛时间内, 禁止提交",
-		})
-		return
-	}
-
-	ok, err = h.competitionSvc.CheckCompetitionProblemExists(ctx, param.CompetitionID, param.ProblemID)
-	if err != nil {
-		gintool.GinResponse(c, &gintool.Response{
-			Code:    http.StatusInternalServerError,
-			Message: err.Error(),
-		})
-		h.log.ErrorContext(ctx, "SubmitCompetitionProblem failed", logger.Error(err))
-		return
-	}
-	if !ok {
-		gintool.GinResponse(c, &gintool.Response{
-			Code:    http.StatusBadRequest,
-			Message: "competition problem not found",
 		})
 		return
 	}
@@ -145,63 +99,6 @@ func (h *SubmissionHandler) SubmitCompetitionProblem(c *gin.Context, param *mode
 	gintool.GinResponse(c, &gintool.Response{
 		Code:    http.StatusOK,
 		Message: "success",
-	})
-}
-
-// func (h *SubmissionHandler) GetSubmissionList(c *gin.Context, param *model.GetSubmissionListParam) {
-// 	ctx := loggerv2.ContextWithFields(c.Request.Context(),
-// 		logger.Uint64("competition_id", param.CompetitionID),
-// 		logger.Uint64("problem_id", param.ProblemID))
-
-// 	submissions, err := h.submissionSvc.GetSubmissionList(ctx, param)
-// 	if err != nil {
-// 		gintool.GinResponse(c, &gintool.Response{
-// 			Code:    http.StatusInternalServerError,
-// 			Message: err.Error(),
-// 		})
-// 		h.log.ErrorContext(ctx, "GetSubmissionList failed", logger.Error(err))
-// 		return
-// 	}
-
-// 	gintool.GinResponse(c, &gintool.Response{
-// 		Code:    http.StatusOK,
-// 		Message: "success",
-// 		Data: model.GetSubmissionListResponse{
-// 			List:  submissions,
-// 			Total: len(submissions),
-// 		},
-// 	})
-// }
-
-func (h *SubmissionHandler) GetSubmissionDownloadPresignedURL(c *gin.Context, param *model.GetSubmissionDownloadPresignedURLParam) {
-	ctx := loggerv2.ContextWithFields(c.Request.Context(), logger.Uint64("submission_id", param.SubmissionID))
-
-	submission, err := h.submissionSvc.GetSubmissionByID(ctx, param.SubmissionID)
-	if err != nil {
-		gintool.GinResponse(c, &gintool.Response{
-			Code:    http.StatusInternalServerError,
-			Message: err.Error(),
-		})
-		h.log.ErrorContext(ctx, "GetSubmissionDownloadPresignedURL failed", logger.Error(err))
-		return
-	}
-
-	presignedURL, err := h.minioSvc.GetPresignedDownloadURL(ctx, h.bucket, submission.CodeURL, h.downloadDurationSeconds)
-	if err != nil {
-		gintool.GinResponse(c, &gintool.Response{
-			Code:    http.StatusInternalServerError,
-			Message: err.Error(),
-		})
-		h.log.ErrorContext(ctx, "GetPresignedDownloadURL failed", logger.Error(err))
-		return
-	}
-
-	gintool.GinResponse(c, &gintool.Response{
-		Code:    http.StatusOK,
-		Message: "success",
-		Data: model.GetSubmissionUploadPresignedURLResponse{
-			PresignedURL: presignedURL,
-		},
 	})
 }
 

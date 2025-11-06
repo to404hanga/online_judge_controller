@@ -34,13 +34,14 @@ type CompetitionService interface {
 	CheckUserInCompetition(ctx context.Context, competitionID, userID uint64) (bool, error)
 	// CheckCompetitionTime 检查比赛时间是否在范围内
 	CheckCompetitionTime(ctx context.Context, competitionID uint64) (bool, error)
-	// GenerateCompetitionProblemPresignedURLList 生成比赛题目预签名 URL 列表
-	GenerateCompetitionProblemPresignedURLList(ctx context.Context, competitionID uint64) ([]model.PresignedURL, error)
-	// GetCompetitionProblemListWithPresignedURL 获取比赛题目列表（包含预签名 URL）
-	GetCompetitionProblemListWithPresignedURL(ctx context.Context, competitionID uint64) ([]model.ProblemWithPresignedURL, error)
-	// CheckCompetitionProblemExists 检查比赛题目是否存在
-	CheckCompetitionProblemExists(ctx context.Context, competitionID, problemID uint64) (bool, error)
 }
+
+const (
+	competitionProblemListKey   = "competition:%d:problem:list"
+	competitionUserSetKey       = "competition:%d:user:set"
+	competitionUserSetLoadedKey = "competition:%d:user:set:loaded"
+	competitionMetaKey          = "competition:%d:meta"
+)
 
 type CompetitionServiceImpl struct {
 	db  *gorm.DB
@@ -189,159 +190,200 @@ func (s *CompetitionServiceImpl) DisableCompetitionProblem(ctx context.Context, 
 
 // GetCompetitionProblemList 获取比赛题目列表
 func (s *CompetitionServiceImpl) GetCompetitionProblemList(ctx context.Context, competitionID uint64) ([]ojmodel.CompetitionProblem, error) {
-	competitionProblems := make([]ojmodel.CompetitionProblem, 0)
-	err := s.db.WithContext(ctx).
+	competitionProblems := make([]ojmodel.CompetitionProblem, 0, 10)
+
+	competitionProblemsBytes, err := s.rdb.Get(ctx, fmt.Sprintf(competitionProblemListKey, competitionID)).Bytes()
+	if err == nil {
+		if err = json.Unmarshal(competitionProblemsBytes, &competitionProblems); err == nil {
+			return competitionProblems, nil
+		}
+	}
+	s.log.WarnContext(ctx, "GetCompetitionProblemList from redis failed", logger.Error(err))
+
+	// 分布式锁，防止缓存击穿
+	lockKey := fmt.Sprintf("lock:competition:%d:problem:list", competitionID)
+	// 过期时间设置为 10s
+	ok, err := s.rdb.SetNX(ctx, lockKey, "locked", 10*time.Second).Result()
+	if err != nil {
+		return nil, fmt.Errorf("GetCompetitionProblemList failed to set lock: %w", err)
+	}
+
+	// 没有获得锁，说明有其他人在操作
+	if !ok {
+		// 等待 1s 后重试
+		time.Sleep(1 * time.Second)
+		return s.GetCompetitionProblemList(ctx, competitionID)
+	}
+	defer retry.Do(ctx, func() error {
+		return s.rdb.Del(ctx, lockKey).Err()
+	}, retry.WithAsync(true), retry.WithCallback(func(err error) {
+		s.log.ErrorContext(ctx, "GetCompetitionProblemList: failed to delete lock", logger.Error(err))
+	}))
+
+	// 获得锁后, 再次尝试从 redis 中获取
+	competitionProblemsBytes, err = s.rdb.Get(ctx, fmt.Sprintf(competitionProblemListKey, competitionID)).Bytes()
+	if err == nil {
+		if err = json.Unmarshal(competitionProblemsBytes, &competitionProblems); err == nil {
+			return competitionProblems, nil
+		}
+	}
+	s.log.WarnContext(ctx, "GetCompetitionProblemList from redis recheck failed", logger.Error(err))
+
+	err = s.db.WithContext(ctx).
 		Where("competition_id = ?", competitionID).
 		Find(&competitionProblems).Error
 	if err != nil {
 		return nil, fmt.Errorf("GetCompetitionProblemList failed at select from competition_problem: %w", err)
+	}
+
+	// 存入 redis
+	competitionProblemsBytes, err = json.Marshal(competitionProblems)
+	if err == nil {
+		// 过期时间设置为 8h
+		s.rdb.Set(ctx, fmt.Sprintf(competitionProblemListKey, competitionID), competitionProblemsBytes, 8*time.Hour)
 	}
 	return competitionProblems, nil
 }
 
 // CheckUserInCompetition 检查用户是否在比赛名单中
 func (s *CompetitionServiceImpl) CheckUserInCompetition(ctx context.Context, competitionID, userID uint64) (bool, error) {
-	var count int64
-	err := s.db.WithContext(ctx).
-		Model(&ojmodel.CompetitionUser{}).
-		Where("competition_id = ?", competitionID).
-		Where("user_id = ?", userID).
-		Count(&count).Error
-	if err != nil {
-		return false, fmt.Errorf("CheckUserInCompetition failed at select from competition_user: %w", err)
+	userSetKey := fmt.Sprintf(competitionUserSetKey, competitionID)
+
+	// 1. 检查用户是否在 Set 缓存中
+	isMember, err := s.rdb.SIsMember(ctx, userSetKey, userID).Result()
+	if err != nil && err != redis.Nil {
+		s.log.WarnContext(ctx, "CheckUserInCompetition: failed to check user in redis set", logger.Error(err))
+		// Redis 查询失败，降级到数据库查询
+	} else if isMember {
+		// 缓存命中，用户在白名单内
+		return true, nil
 	}
-	return count > 0, nil
+
+	// 2. 检查 'loaded' 标记是否存在，防止缓存穿透
+	loadedKey := fmt.Sprintf(competitionUserSetLoadedKey, competitionID)
+	loaded, err := s.rdb.Exists(ctx, loadedKey).Result()
+	if err != nil && err != redis.Nil {
+		s.log.WarnContext(ctx, "CheckUserInCompetition: failed to check loaded flag", logger.Error(err))
+	}
+	if loaded > 0 {
+		// 'loaded' 标记存在，但用户不在 Set 中，说明用户确实不在白名单内
+		return false, nil
+	}
+
+	// 3. 缓存未命中且 'loaded' 标记不存在（可能预热失败），启动分布式锁进行缓存重建
+	lockKey := fmt.Sprintf("lock:competition:%d:user:set:load", competitionID)
+	ok, err := s.rdb.SetNX(ctx, lockKey, "locked", 10*time.Second).Result()
+	if err != nil {
+		return false, fmt.Errorf("CheckUserInCompetition: failed to set lock: %w", err)
+	}
+
+	if !ok {
+		// 未获取到锁，休眠后重试，让持有锁的协程完成缓存加载
+		time.Sleep(1 * time.Second)
+		return s.CheckUserInCompetition(ctx, competitionID, userID)
+	}
+	defer retry.Do(ctx, func() error {
+		return s.rdb.Del(ctx, lockKey).Err()
+	}, retry.WithAsync(true), retry.WithCallback(func(err error) {
+		s.log.ErrorContext(ctx, "CheckUserInCompetition: failed to delete lock", logger.Error(err))
+	}))
+
+	// 4. 获取锁后，再次检查缓存，防止在等待锁期间缓存已被其他协程加载
+	isMember, _ = s.rdb.SIsMember(ctx, userSetKey, userID).Result()
+	if isMember {
+		return true, nil
+	}
+	loaded, _ = s.rdb.Exists(ctx, loadedKey).Result()
+	if loaded > 0 {
+		return false, nil
+	}
+
+	// 5. 从数据库加载所有比赛用户
+	var users []ojmodel.CompetitionUser
+	err = s.db.WithContext(ctx).Model(&ojmodel.CompetitionUser{}).
+		Where("competition_id = ?", competitionID).
+		Find(&users).Error
+	if err != nil {
+		return false, fmt.Errorf("CheckUserInCompetition: failed to load users from db: %w", err)
+	}
+
+	// 6. 将用户批量写入 Redis Set 并设置 'loaded' 标记
+	pipe := s.rdb.Pipeline()
+	userInDB := false
+	if len(users) > 0 {
+		for _, user := range users {
+			pipe.SAdd(ctx, userSetKey, user.UserID)
+			if user.UserID == userID {
+				userInDB = true
+			}
+		}
+	}
+	// 写入 'loaded' 标记，即使比赛没有用户（空集合），也要标记为已加载，防止后续请求穿透
+	pipe.Set(ctx, loadedKey, "1", 8*time.Hour)
+	_, err = pipe.Exec(ctx)
+	if err != nil {
+		s.log.ErrorContext(ctx, "CheckUserInCompetition: failed to execute redis pipeline", logger.Error(err))
+		// 即使缓存写入失败，本次检查的正确性由 userInDB 保证
+	}
+
+	return userInDB, nil
 }
 
 // CheckCompetitionTime 检查比赛时间是否在范围内
 func (s *CompetitionServiceImpl) CheckCompetitionTime(ctx context.Context, competitionID uint64) (bool, error) {
 	var competition ojmodel.Competition
-	err := s.db.WithContext(ctx).
+	metaKey := fmt.Sprintf(competitionMetaKey, competitionID)
+
+	// 1. 优先从 Redis 获取比赛元数据
+	metaBytes, err := s.rdb.Get(ctx, metaKey).Bytes()
+	if err == nil {
+		if err = json.Unmarshal(metaBytes, &competition); err == nil {
+			return !time.Now().Before(competition.StartTime) && time.Now().Before(competition.EndTime), nil
+		}
+		s.log.WarnContext(ctx, "CheckCompetitionTime: failed to unmarshal competition meta from redis", logger.Error(err))
+	}
+
+	// 2. 缓存未命中，使用分布式锁进行数据库回源
+	lockKey := fmt.Sprintf("lock:competition:%d:meta:load", competitionID)
+	ok, err := s.rdb.SetNX(ctx, lockKey, "locked", 10*time.Second).Result()
+	if err != nil {
+		return false, fmt.Errorf("CheckCompetitionTime: failed to set lock: %w", err)
+	}
+
+	if !ok {
+		// 未获取到锁，休眠后重试
+		time.Sleep(1 * time.Second)
+		return s.CheckCompetitionTime(ctx, competitionID)
+	}
+	defer retry.Do(ctx, func() error {
+		return s.rdb.Del(ctx, lockKey).Err()
+	}, retry.WithAsync(true), retry.WithCallback(func(err error) {
+		s.log.ErrorContext(ctx, "CheckCompetitionTime: failed to delete lock", logger.Error(err))
+	}))
+
+	// 3. 获取锁后，再次检查缓存
+	metaBytes, err = s.rdb.Get(ctx, metaKey).Bytes()
+	if err == nil {
+		if err = json.Unmarshal(metaBytes, &competition); err == nil {
+			return !time.Now().Before(competition.StartTime) && time.Now().Before(competition.EndTime), nil
+		}
+	}
+
+	// 4. 从数据库加载比赛元数据
+	err = s.db.WithContext(ctx).
 		Where("id = ?", competitionID).
-		Select("start_time, end_time").
 		First(&competition).Error
 	if err != nil {
-		return false, fmt.Errorf("CheckCompetitionTime failed at select from competition: %w", err)
-	}
-	return !time.Now().Before(competition.StartTime) && time.Now().Before(competition.EndTime), nil
-}
-
-// GenerateCompetitionProblemPresignedURLList 生成比赛题目预签名 URL 列表
-func (s *CompetitionServiceImpl) GenerateCompetitionProblemPresignedURLList(ctx context.Context, competitionID uint64) ([]model.PresignedURL, error) {
-	var urls []model.PresignedURL
-	err := s.db.WithContext(ctx).
-		Table(fmt.Sprintf("%s competition_problem", ojmodel.CompetitionProblem{}.TableName())).
-		Select("p.id as id, p.description_url as url").
-		Joins(fmt.Sprintf("JOIN %s p ON cp.problem_id = p.id", ojmodel.Problem{}.TableName())).
-		Where("cp.competition_id = ?", competitionID).
-		Where("cp.status = ?", ojmodel.CompetitionProblemStatusEnabled).
-		Where("p.status = ?", ojmodel.ProblemStatusPublished).
-		Scan(&urls).Error
-	if err != nil {
-		return nil, fmt.Errorf("GenerateCompetitionProblemPresignedURLList failed at select from competition_problem: %w", err)
+		return false, fmt.Errorf("CheckCompetitionTime: failed to select from competition: %w", err)
 	}
 
-	for _, url := range urls {
-		err = retry.Do(ctx, func() error {
-			_, errInternal := s.rdb.Set(ctx, fmt.Sprintf("competition_problem:%d:%d", competitionID, url.ID), true, 8*time.Hour).Result()
-			return errInternal
-		})
-		if err != nil {
-			s.log.WarnContext(ctx, "GenerateCompetitionProblemPresignedURLList failed at set redis", logger.Error(err))
-		}
-	}
-
-	urlsByte, _ := json.Marshal(urls)
-	err = s.rdb.Set(ctx, fmt.Sprintf("competition_problem_presigned_url_list:%d", competitionID), string(urlsByte), 8*time.Hour).Err()
-	if err != nil {
-		return nil, fmt.Errorf("GenerateCompetitionProblemPresignedURLList failed at set redis: %w", err)
-	}
-
-	return urls, nil
-}
-
-// GetCompetitionProblemListWithPresignedURL 获取比赛题目列表（包含预签名 URL）
-func (s *CompetitionServiceImpl) GetCompetitionProblemListWithPresignedURL(ctx context.Context, competitionID uint64) ([]model.ProblemWithPresignedURL, error) {
-	var problems []model.ProblemWithPresignedURL
-	err := s.db.WithContext(ctx).
-		Table(fmt.Sprintf("%s competition_problem", ojmodel.CompetitionProblem{}.TableName())).
-		Select("p.id as id, p.title as title, p.time_limit as time_limit, p.memory_limit as memory_limit").
-		Joins(fmt.Sprintf("JOIN %s p ON cp.problem_id = p.id", ojmodel.Problem{}.TableName())).
-		Where("cp.competition_id = ?", competitionID).
-		Where("cp.status = ?", ojmodel.CompetitionProblemStatusEnabled).
-		Where("p.status = ?", ojmodel.ProblemStatusPublished).
-		Scan(&problems).Error
-	if err != nil {
-		return nil, fmt.Errorf("GetCompetitionProblemListWithPresignedURL failed at select from competition_problem: %w", err)
-	}
-
-	var urls []model.PresignedURL
-	urlsByte, err := s.rdb.Get(ctx, fmt.Sprintf("competition_problem_presigned_url_list:%d", competitionID)).Bytes()
-	if err != nil {
-		s.log.ErrorContext(ctx, "GetCompetitionProblemListWithPresignedURL failed at get redis", logger.Error(err))
-		urls, err = s.GenerateCompetitionProblemPresignedURLList(ctx, competitionID)
-		if err != nil {
-			return nil, fmt.Errorf("GetCompetitionProblemListWithPresignedURL failed at generate presigned url list: %w", err)
-		}
+	// 5. 将元数据写入 Redis 缓存
+	metaBytes, err = json.Marshal(competition)
+	if err == nil {
+		s.rdb.Set(ctx, metaKey, metaBytes, 8*time.Hour)
 	} else {
-		err = json.Unmarshal(urlsByte, &urls)
-		if err != nil {
-			return nil, fmt.Errorf("GetCompetitionProblemListWithPresignedURL failed at unmarshal redis: %w", err)
-		}
+		s.log.ErrorContext(ctx, "CheckCompetitionTime: failed to marshal competition meta", logger.Error(err))
 	}
 
-	for idx := range problems {
-		for _, url := range urls {
-			if problems[idx].ID == url.ID {
-				problems[idx].PresignedURL = url.URL
-				break
-			}
-		}
-	}
-
-	return problems, nil
-}
-
-// CheckCompetitionProblemExists 检查比赛题目是否存在
-func (s *CompetitionServiceImpl) CheckCompetitionProblemExists(ctx context.Context, competitionID, problemID uint64) (bool, error) {
-	// 检查比赛题目是否存在
-	exists, err := s.rdb.Exists(ctx, fmt.Sprintf("competition_problem:%d:%d", competitionID, problemID)).Result()
-	if err != nil {
-		return false, fmt.Errorf("CheckCompetitionProblemExists failed at check competition problem: %w", err)
-	}
-	if exists > 0 {
-		return true, nil
-	}
-
-	ok, err := s.rdb.SetNX(ctx, fmt.Sprintf("competition_problem_mutex:%d:%d", competitionID, problemID), 1, 2*time.Second).Result()
-	if err != nil {
-		return false, fmt.Errorf("CheckCompetitionProblemExists failed at check competition problem: %w", err)
-	}
-	if !ok {
-		time.Sleep(3 * time.Second)
-		return s.CheckCompetitionProblemExists(ctx, competitionID, problemID)
-	}
-	defer func() {
-		err = retry.Do(ctx, func() error {
-			return s.rdb.Del(ctx, fmt.Sprintf("competition_problem_mutex:%d:%d", competitionID, problemID)).Err()
-		})
-		if err != nil {
-			s.log.ErrorContext(ctx, "CheckCompetitionProblemExists failed at del competition problem mutex")
-		}
-	}()
-
-	var cnt int64
-	err = s.db.WithContext(ctx).Model(&ojmodel.CompetitionProblem{}).
-		Where("competition_id = ?", competitionID).
-		Where("problem_id = ?", problemID).
-		Where("status = ?", ojmodel.CompetitionProblemStatusEnabled).
-		Count(&cnt).Error
-	if err != nil {
-		return false, fmt.Errorf("CheckCompetitionProblemExists failed at check competition problem: %w", err)
-	}
-	if cnt > 0 {
-		s.rdb.Set(ctx, fmt.Sprintf("competition_problem:%d:%d", competitionID, problemID), true, 8*time.Hour)
-		return true, nil
-	}
-	return false, nil
+	return !time.Now().Before(competition.StartTime) && time.Now().Before(competition.EndTime), nil
 }
