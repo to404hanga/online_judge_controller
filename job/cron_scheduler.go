@@ -79,19 +79,6 @@ func NewCronScheduler(minioSvc *minio.MinIOService, problemSvc service.ProblemSe
 	return scheduler
 }
 
-// registerDefaultJobs 注册默认任务
-func (s *CronScheduler) registerDefaultJobs() {
-	// MinIO清理任务 - 每天凌晨2点执行
-	s.AddJob(&JobConfig{
-		Name:        "minio_cleanup",
-		CronExpr:    "0 0 2 * * *", // 每天凌晨2点
-		JobFunc:     s.minioCleanupJob,
-		Description: "清理MinIO中的孤儿文件和临时文件",
-		Enabled:     true,
-		Timeout:     30 * time.Minute,
-	})
-}
-
 // AddJob 添加任务
 func (s *CronScheduler) AddJob(config *JobConfig) error {
 	s.mu.Lock()
@@ -328,36 +315,4 @@ func (s *CronScheduler) RunJobOnce(name string) error {
 	defer cancel()
 
 	return job.JobFunc(ctx)
-}
-
-// 具体的任务实现
-
-// minioCleanupJob MinIO清理任务
-func (s *CronScheduler) minioCleanupJob(ctx context.Context) error {
-	s.log.InfoContext(ctx, "Starting MinIO cleanup job")
-
-	// 创建清理器
-	cleaner := NewMinIOProblemCleaner(
-		s.problemSvc,
-		s.minioSvc,
-		s.log,
-		map[string]string{
-			ProblemKey:  "problem",
-			TestcaseKey: "testcase",
-		},
-		7, // 7天
-	)
-
-	stats, err := cleaner.RunCleanup(ctx)
-	if err != nil {
-		return fmt.Errorf("MinIO cleanup failed: %w", err)
-	}
-
-	s.log.InfoContext(ctx, "MinIO cleanup completed",
-		logger.Int("deletedFiles", stats.DeletedFiles),
-		logger.Int64("deletedSize", stats.DeletedSize),
-		logger.Int64("duration_ns", stats.ProcessDuration.Nanoseconds()),
-	)
-
-	return nil
 }

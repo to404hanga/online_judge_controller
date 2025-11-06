@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 	ojmodel "github.com/to404hanga/online_judge_common/model"
@@ -19,6 +20,8 @@ type SubmissionService interface {
 	GetLatestSubmission(ctx context.Context, competitionID, problemID, userID uint64) (*ojmodel.Submission, error)
 	// GetSubmissionByID 获取提交记录
 	GetSubmissionByID(ctx context.Context, submissionID uint64) (*ojmodel.Submission, error)
+	// CleanUserFailedSubmission 清理给定截止时间之前所有用户的失败提交记录(仅清理提交代码)
+	CleanUserFailedSubmission(ctx context.Context, timeDeadline time.Time) error
 }
 
 type SubmissionServiceImpl struct {
@@ -81,4 +84,15 @@ func (s *SubmissionServiceImpl) GetSubmissionByID(ctx context.Context, submissio
 		return nil, fmt.Errorf("GetSubmissionByID failed at find submission: %w", err)
 	}
 	return &submission, nil
+}
+
+func (s *SubmissionServiceImpl) CleanUserFailedSubmission(ctx context.Context, timeDeadline time.Time) error {
+	err := s.db.WithContext(ctx).Model(&ojmodel.Submission{}).
+		Where("result != ?", ojmodel.SubmissionResultAccepted).
+		Where("created_at < ?", timeDeadline).
+		UpdateColumn("code", "**代码已被清理**").Error
+	if err != nil {
+		return fmt.Errorf("CleanUserFailedSubmission failed at update submission: %w", err)
+	}
+	return nil
 }

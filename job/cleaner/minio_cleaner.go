@@ -1,4 +1,4 @@
-package job
+package cleaner
 
 import (
 	"context"
@@ -35,39 +35,27 @@ func NewMinIOProblemCleaner(problemSvc service.ProblemService, minioSvc *minio.M
 	}
 }
 
-func (c *MinIOProblemCleaner) RunCleanup(ctx context.Context) (stats *CleanupStats, err error) {
-	stats = &CleanupStats{
-		StartTime:       time.Now(),
-		SubCleanupStats: make(map[string]*CleanupStats, 1),
-	}
-	defer func() {
-		stats.EndTime = time.Now()
-		stats.ProcessDuration = stats.EndTime.Sub(stats.StartTime)
-	}()
+func (c *MinIOProblemCleaner) RunCleanup(ctx context.Context) error {
+	c.log.InfoContext(ctx, "Starting minio problem cleanup job")
 
 	orphanStats, err := c.cleanupOrphanFiles(ctx)
 	if err != nil {
 		c.log.ErrorContext(ctx, "cleanupOrphanFiles failed", logger.Error(err))
-		stats.ErrorCount++
-		return
+		return err
 	}
-	stats.SubCleanupStats[ProblemKey] = orphanStats
-	stats.TotalFiles += orphanStats.TotalFiles
-	stats.DeletedFiles += orphanStats.DeletedFiles
-	stats.DeletedSize += orphanStats.DeletedSize
 
-	return
+	c.log.InfoContext(ctx, "MinIO problem cleanup job completed", logger.Any("stats", orphanStats))
+	return err
 }
 
 type CleanupStats struct {
-	TotalFiles      int                      `json:"total_files"`
-	DeletedFiles    int                      `json:"deleted_files"`
-	DeletedSize     int64                    `json:"deleted_size"`
-	ErrorCount      int                      `json:"error_count"`
-	ProcessDuration time.Duration            `json:"process_duration"`
-	StartTime       time.Time                `json:"start_time"`
-	EndTime         time.Time                `json:"end_time"`
-	SubCleanupStats map[string]*CleanupStats `json:"sub_cleanup_stats"`
+	TotalFiles      int           `json:"total_files"`
+	DeletedFiles    int           `json:"deleted_files"`
+	DeletedSize     int64         `json:"deleted_size"`
+	ErrorCount      int           `json:"error_count"`
+	ProcessDuration time.Duration `json:"process_duration"`
+	StartTime       time.Time     `json:"start_time"`
+	EndTime         time.Time     `json:"end_time"`
 }
 
 func (c *MinIOProblemCleaner) cleanupOrphanFiles(ctx context.Context) (stats *CleanupStats, err error) {
