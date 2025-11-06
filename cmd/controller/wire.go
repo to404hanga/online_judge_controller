@@ -8,6 +8,7 @@ import (
 	commonioc "github.com/to404hanga/online_judge_controller/ioc"
 	"github.com/to404hanga/online_judge_controller/service"
 	"github.com/to404hanga/online_judge_controller/web"
+	"github.com/to404hanga/online_judge_controller/event"
 )
 
 func BuildDependency() *web.GinServer {
@@ -17,6 +18,10 @@ func BuildDependency() *web.GinServer {
 		commonioc.InitJWTHandler,
 		commonioc.InitRedis,
 		commonioc.InitMinIO,
+		commonioc.InitKafka,
+		commonioc.InitSyncProducer,
+
+		event.NewSaramaProducer,
 
 		service.NewCompetitionService,
 		// service.NewUserService,

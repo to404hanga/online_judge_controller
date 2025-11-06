@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/IBM/sarama"
 	"github.com/redis/go-redis/v9"
 	ojmodel "github.com/to404hanga/online_judge_common/model"
+	"github.com/to404hanga/online_judge_controller/event"
 	"github.com/to404hanga/online_judge_controller/model"
 	"github.com/to404hanga/online_judge_controller/pkg/pointer"
 	loggerv2 "github.com/to404hanga/pkg404/logger/v2"
@@ -25,18 +27,20 @@ type SubmissionService interface {
 }
 
 type SubmissionServiceImpl struct {
-	db  *gorm.DB
-	rdb redis.Cmdable
-	log loggerv2.Logger
+	db    *gorm.DB
+	rdb   redis.Cmdable
+	kafka event.Producer
+	log   loggerv2.Logger
 }
 
 var _ SubmissionService = (*SubmissionServiceImpl)(nil)
 
-func NewSubmissionService(db *gorm.DB, rdb redis.Cmdable, log loggerv2.Logger) SubmissionService {
+func NewSubmissionService(db *gorm.DB, rdb redis.Cmdable, kafka event.Producer, log loggerv2.Logger) SubmissionService {
 	return &SubmissionServiceImpl{
-		db:  db,
-		rdb: rdb,
-		log: log,
+		db:    db,
+		rdb:   rdb,
+		kafka: kafka,
+		log:   log,
 	}
 }
 
@@ -55,7 +59,19 @@ func (s *SubmissionServiceImpl) SubmitCompetitionProblem(ctx context.Context, pa
 		return fmt.Errorf("SubmitCompetitionProblem failed at create submission: %w", err)
 	}
 
-	// TODO 通过 kafka 发布提交任务
+	// 通过 kafka 发布提交任务
+	msg := event.SubmissionMessage{SubmissionID: int64(submission.ID)}
+	val, err := msg.Marshal()
+	if err != nil {
+		return fmt.Errorf("SubmitCompetitionProblem failed at marshal message: %w", err)
+	}
+	_, _, err = s.kafka.Produce(ctx, &sarama.ProducerMessage{
+		Topic: event.SubmissionTopic,
+		Value: sarama.ByteEncoder(val),
+	})
+	if err != nil {
+		return fmt.Errorf("SubmitCompetitionProblem failed at produce message: %w", err)
+	}
 
 	return nil
 }

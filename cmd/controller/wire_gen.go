@@ -8,6 +8,7 @@ package main
 
 import (
 	ioc2 "github.com/to404hanga/online_judge_controller/cmd/controller/ioc"
+	"github.com/to404hanga/online_judge_controller/event"
 	"github.com/to404hanga/online_judge_controller/ioc"
 	"github.com/to404hanga/online_judge_controller/service"
 	"github.com/to404hanga/online_judge_controller/web"
@@ -30,7 +31,10 @@ func BuildDependency() *web.GinServer {
 	problemService := service.NewProblemService(db, cmdable, logger)
 	minIOService := ioc.InitMinIO(logger)
 	problemHandler := ioc.InitProblemHandler(problemService, minIOService, logger)
-	submissionService := service.NewSubmissionService(db, cmdable, logger)
+	client := ioc.InitKafka()
+	syncProducer := ioc.InitSyncProducer(client)
+	producer := event.NewSaramaProducer(syncProducer)
+	submissionService := service.NewSubmissionService(db, cmdable, producer, logger)
 	submissionHandler := ioc.InitSubmissionHandler(submissionService, minIOService, competitionService, logger)
 	healthHandler := web.NewHealthHandler(logger)
 	ginServer := ioc2.InitGinServer(logger, handler, db, competitionHandler, problemHandler, submissionHandler, healthHandler)

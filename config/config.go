@@ -99,3 +99,11 @@ type SubmissionMinIOConfig struct {
 func (SubmissionMinIOConfig) Key() string {
 	return "minio.configs.submission"
 }
+
+type KafkaConfig struct {
+	Brokers []string `yaml:"brokers"`
+}
+
+func (KafkaConfig) Key() string {
+	return "kafka"
+}
