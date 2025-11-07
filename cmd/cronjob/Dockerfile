@@ -21,7 +21,7 @@ RUN go mod download
 COPY . .
 
 # 构建应用程序
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/controller
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/cronjob
 
 # 使用轻量级的alpine镜像作为运行环境
 FROM alpine:latest
@@ -39,7 +39,7 @@ COPY --from=builder /app/main .
 RUN mkdir -p config
 
 # 复制配置文件
-COPY cmd/controller/config/config.yaml ./config/
+COPY cmd/cronjob/config/config.yaml ./config/
 
 # 创建日志目录
 RUN mkdir -p log
