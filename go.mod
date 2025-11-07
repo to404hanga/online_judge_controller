@@ -15,9 +15,10 @@ require (
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
-	github.com/to404hanga/online_judge_common v0.0.8
+	github.com/to404hanga/online_judge_common v0.0.9
 	github.com/to404hanga/pkg404 v0.0.34
 	github.com/xuri/excelize/v2 v2.9.1
+	google.golang.org/protobuf v1.36.10
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/gorm v1.30.0
 )
@@ -97,5 +98,4 @@ require (
 	golang.org/x/sys v0.35.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
 	golang.org/x/tools v0.35.0 // indirect
-	google.golang.org/protobuf v1.36.9 // indirect
 )

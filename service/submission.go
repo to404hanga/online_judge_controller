@@ -8,10 +8,13 @@ import (
 	"github.com/IBM/sarama"
 	"github.com/redis/go-redis/v9"
 	ojmodel "github.com/to404hanga/online_judge_common/model"
+	ojconstants "github.com/to404hanga/online_judge_common/proto/constants"
+	pbsubmission "github.com/to404hanga/online_judge_common/proto/gen/submission"
 	"github.com/to404hanga/online_judge_controller/event"
 	"github.com/to404hanga/online_judge_controller/model"
 	"github.com/to404hanga/online_judge_controller/pkg/pointer"
 	loggerv2 "github.com/to404hanga/pkg404/logger/v2"
+	"google.golang.org/protobuf/proto"
 	"gorm.io/gorm"
 )
 
@@ -60,13 +63,13 @@ func (s *SubmissionServiceImpl) SubmitCompetitionProblem(ctx context.Context, pa
 	}
 
 	// 通过 kafka 发布提交任务
-	msg := event.SubmissionMessage{SubmissionID: int64(submission.ID)}
-	val, err := msg.Marshal()
+	msg := &pbsubmission.Submission{SubmissionId: submission.ID}
+	val, err := proto.Marshal(msg)
 	if err != nil {
 		return fmt.Errorf("SubmitCompetitionProblem failed at marshal message: %w", err)
 	}
 	_, _, err = s.kafka.Produce(ctx, &sarama.ProducerMessage{
-		Topic: event.SubmissionTopic,
+		Topic: ojconstants.SubmissionTopic,
 		Value: sarama.ByteEncoder(val),
 	})
 	if err != nil {
