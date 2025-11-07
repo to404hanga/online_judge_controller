@@ -55,6 +55,7 @@ func (s *SubmissionServiceImpl) SubmitCompetitionProblem(ctx context.Context, pa
 		UserID:        param.Operator,
 		Code:          param.Code,
 		Language:      pointer.ToPtr(ojmodel.SubmissionLanguage(param.Language)),
+		CreatedAt:     time.Now(), // 立即生成提交时间
 	}
 
 	err := s.db.WithContext(ctx).Create(&submission).Error
