@@ -75,3 +75,7 @@ minio:
       bucket: "submission"
       uploadDurationSeconds: 60
       downloadDurationSeconds: 60
+
+kafka:
+  brokers:
+    - "localhost:9092"
