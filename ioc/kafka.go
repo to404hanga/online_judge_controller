@@ -2,7 +2,6 @@ package ioc
 
 import (
 	"github.com/IBM/sarama"
-	"github.com/google/wire"
 	"github.com/spf13/viper"
 	"github.com/to404hanga/online_judge_controller/config"
 )
@@ -28,5 +27,3 @@ func InitSyncProducer(client sarama.Client) sarama.SyncProducer {
 	}
 	return p
 }
-
-var KafkaProviderSet = wire.NewSet(InitKafka, InitSyncProducer)
