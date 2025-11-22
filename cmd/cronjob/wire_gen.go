@@ -20,9 +20,8 @@ func InitScheduler() *job.CronScheduler {
 	db := ioc.InitDB()
 	cmdable := ioc2.InitNilRedis()
 	problemService := service.NewProblemService(db, cmdable, logger)
-	minIOService := ioc.InitMinIO(logger)
 	producer := ioc2.InitNilKafka()
 	submissionService := service.NewSubmissionService(db, cmdable, producer, logger)
-	cronScheduler := ioc2.InitScheduler(logger, problemService, minIOService, submissionService)
+	cronScheduler := ioc2.InitScheduler(logger, problemService, submissionService)
 	return cronScheduler
 }

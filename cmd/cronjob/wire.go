@@ -16,7 +16,6 @@ func InitScheduler() *job.CronScheduler {
 		commonioc.InitLogger,
 		ioc.InitNilRedis,
 		ioc.InitNilKafka,
-		commonioc.InitMinIO,
 		service.NewProblemService,
 		service.NewSubmissionService,
 		ioc.InitScheduler,
