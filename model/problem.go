@@ -68,3 +68,9 @@ type GetProblemListResponse struct {
 	List  []ojmodel.Problem `json:"list"`
 	Total int               `json:"total"`
 }
+
+type UploadProblemTestcaseParam struct {
+	CommonParam `json:"-"`
+
+	ProblemID uint64 `json:"problem_id" binding:"required"`
+}

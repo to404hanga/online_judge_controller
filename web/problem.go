@@ -1,23 +1,28 @@
 package web
 
 import (
+	"archive/zip"
 	"crypto/sha256"
 	"encoding/hex"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/to404hanga/online_judge_controller/constants"
 	"github.com/to404hanga/online_judge_controller/model"
 	"github.com/to404hanga/online_judge_controller/pkg/gintool"
-	"github.com/to404hanga/online_judge_controller/pkg/minio"
 	"github.com/to404hanga/online_judge_controller/service"
 	"github.com/to404hanga/pkg404/logger"
 	loggerv2 "github.com/to404hanga/pkg404/logger/v2"
 )
 
 type ProblemHandler struct {
-	problemSvc              service.ProblemService
-	minioSvc                *minio.MinIOService
+	problemSvc service.ProblemService
+	//minioSvc                *minio.MinIOService
 	log                     loggerv2.Logger
 	problemBucket           string
 	testcaseBucket          string
@@ -27,10 +32,9 @@ type ProblemHandler struct {
 
 var _ Handler = (*ProblemHandler)(nil)
 
-func NewProblemHandler(problemSvc service.ProblemService, minioSvc *minio.MinIOService, log loggerv2.Logger, problemBucket, testcaseBucket string, uploadDurationSeconds, downloadDurationSeconds int) *ProblemHandler {
+func NewProblemHandler(problemSvc service.ProblemService, log loggerv2.Logger, problemBucket, testcaseBucket string, uploadDurationSeconds, downloadDurationSeconds int) *ProblemHandler {
 	return &ProblemHandler{
 		problemSvc:              problemSvc,
-		minioSvc:                minioSvc,
 		log:                     log,
 		problemBucket:           problemBucket,
 		testcaseBucket:          testcaseBucket,
@@ -42,9 +46,10 @@ func NewProblemHandler(problemSvc service.ProblemService, minioSvc *minio.MinIOS
 func (h *ProblemHandler) Register(r *gin.Engine) {
 	r.POST(constants.CreateProblemPath, gintool.WrapHandler(h.CreateProblem, h.log))
 	r.PUT(constants.UpdateProblemPath, gintool.WrapHandler(h.UpdateProblem, h.log))
-	r.GET(constants.GetProblemTestcaseUploadPresignedURLPath, gintool.WrapHandler(h.GetProblemTestcaseUploadPresignedURL, h.log))
-	r.GET(constants.GetProblemTestcaseDownloadPresignedURLPath, gintool.WrapHandler(h.GetProblemTestcaseDownloadPresignedURL, h.log))
+	// r.GET(constants.GetProblemTestcaseUploadPresignedURLPath, gintool.WrapHandler(h.GetProblemTestcaseUploadPresignedURL, h.log))
+	// r.GET(constants.GetProblemTestcaseDownloadPresignedURLPath, gintool.WrapHandler(h.GetProblemTestcaseDownloadPresignedURL, h.log))
 	r.GET(constants.GetProblemListPath, gintool.WrapHandler(h.GetProblemList, h.log))
+	r.POST(constants.UploadProblemTestcasePath, gintool.WrapWithoutBodyHandler(h.UploadProblemTestcase, h.log))
 }
 
 func (h *ProblemHandler) CreateProblem(c *gin.Context, param *model.CreateProblemParam) {
@@ -117,59 +122,59 @@ func (h *ProblemHandler) UpdateProblem(c *gin.Context, param *model.UpdateProble
 	})
 }
 
-func (h *ProblemHandler) GetProblemTestcaseUploadPresignedURL(c *gin.Context, param *model.GetProblemTestcaseUploadPresignedURLParam) {
-	ctx := loggerv2.ContextWithFields(c.Request.Context(), logger.String("hash", param.Hash))
+// func (h *ProblemHandler) GetProblemTestcaseUploadPresignedURL(c *gin.Context, param *model.GetProblemTestcaseUploadPresignedURLParam) {
+// 	ctx := loggerv2.ContextWithFields(c.Request.Context(), logger.String("hash", param.Hash))
 
-	presignedURL, err := h.minioSvc.GetPresignedUploadURL(ctx, h.testcaseBucket, param.Hash, h.uploadDurationSeconds)
-	if err != nil {
-		gintool.GinResponse(c, &gintool.Response{
-			Code:    http.StatusInternalServerError,
-			Message: err.Error(),
-		})
-		h.log.ErrorContext(ctx, "GetProblemTestcaseUploadPresignedURL failed", logger.Error(err))
-		return
-	}
+// 	presignedURL, err := h.minioSvc.GetPresignedUploadURL(ctx, h.testcaseBucket, param.Hash, h.uploadDurationSeconds)
+// 	if err != nil {
+// 		gintool.GinResponse(c, &gintool.Response{
+// 			Code:    http.StatusInternalServerError,
+// 			Message: err.Error(),
+// 		})
+// 		h.log.ErrorContext(ctx, "GetProblemTestcaseUploadPresignedURL failed", logger.Error(err))
+// 		return
+// 	}
 
-	gintool.GinResponse(c, &gintool.Response{
-		Code:    http.StatusOK,
-		Message: "success",
-		Data: &model.GetProblemTestcaseUploadPresignedURLResponse{
-			PresignedURL: presignedURL,
-		},
-	})
-}
+// 	gintool.GinResponse(c, &gintool.Response{
+// 		Code:    http.StatusOK,
+// 		Message: "success",
+// 		Data: &model.GetProblemTestcaseUploadPresignedURLResponse{
+// 			PresignedURL: presignedURL,
+// 		},
+// 	})
+// }
 
-func (h *ProblemHandler) GetProblemTestcaseDownloadPresignedURL(c *gin.Context, param *model.GetProblemTestcaseDownloadPresignedURLParam) {
-	ctx := loggerv2.ContextWithFields(c.Request.Context(), logger.Uint64("problem_id", param.ProblemID))
+// func (h *ProblemHandler) GetProblemTestcaseDownloadPresignedURL(c *gin.Context, param *model.GetProblemTestcaseDownloadPresignedURLParam) {
+// 	ctx := loggerv2.ContextWithFields(c.Request.Context(), logger.Uint64("problem_id", param.ProblemID))
 
-	problem, err := h.problemSvc.GetProblemByID(ctx, param.ProblemID)
-	if err != nil {
-		gintool.GinResponse(c, &gintool.Response{
-			Code:    http.StatusInternalServerError,
-			Message: err.Error(),
-		})
-		h.log.ErrorContext(ctx, "GetProblemTestcaseDownloadPresignedURL failed", logger.Error(err))
-		return
-	}
+// 	problem, err := h.problemSvc.GetProblemByID(ctx, param.ProblemID)
+// 	if err != nil {
+// 		gintool.GinResponse(c, &gintool.Response{
+// 			Code:    http.StatusInternalServerError,
+// 			Message: err.Error(),
+// 		})
+// 		h.log.ErrorContext(ctx, "GetProblemTestcaseDownloadPresignedURL failed", logger.Error(err))
+// 		return
+// 	}
 
-	presignedURL, err := h.minioSvc.GetPresignedDownloadURL(ctx, h.testcaseBucket, problem.TestcaseZipURL, h.downloadDurationSeconds)
-	if err != nil {
-		gintool.GinResponse(c, &gintool.Response{
-			Code:    http.StatusInternalServerError,
-			Message: err.Error(),
-		})
-		h.log.ErrorContext(ctx, "GetProblemTestcaseDownloadPresignedURL failed", logger.Error(err))
-		return
-	}
+// 	presignedURL, err := h.minioSvc.GetPresignedDownloadURL(ctx, h.testcaseBucket, problem.TestcaseZipURL, h.downloadDurationSeconds)
+// 	if err != nil {
+// 		gintool.GinResponse(c, &gintool.Response{
+// 			Code:    http.StatusInternalServerError,
+// 			Message: err.Error(),
+// 		})
+// 		h.log.ErrorContext(ctx, "GetProblemTestcaseDownloadPresignedURL failed", logger.Error(err))
+// 		return
+// 	}
 
-	gintool.GinResponse(c, &gintool.Response{
-		Code:    http.StatusOK,
-		Message: "success",
-		Data: &model.GetProblemTestcaseDownloadPresignedURLResponse{
-			PresignedURL: presignedURL,
-		},
-	})
-}
+// 	gintool.GinResponse(c, &gintool.Response{
+// 		Code:    http.StatusOK,
+// 		Message: "success",
+// 		Data: &model.GetProblemTestcaseDownloadPresignedURLResponse{
+// 			PresignedURL: presignedURL,
+// 		},
+// 	})
+// }
 
 func (h *ProblemHandler) GetProblemList(c *gin.Context, param *model.GetProblemListParam) {
 	fields := []logger.Field{
@@ -213,4 +218,113 @@ func (h *ProblemHandler) GetProblemList(c *gin.Context, param *model.GetProblemL
 			Total: len(problems),
 		},
 	})
+}
+
+func (h *ProblemHandler) UploadProblemTestcase(c *gin.Context, param *model.UploadProblemTestcaseParam) {
+	pid := c.Query("problem_id")
+	if pid != "" {
+		id, err := strconv.ParseUint(pid, 10, 64)
+		if err != nil {
+			gintool.GinResponse(c, &gintool.Response{
+				Code:    http.StatusBadRequest,
+				Message: "problem_id is invalid",
+			})
+			return
+		}
+		param.ProblemID = id
+	}
+
+	ctx := loggerv2.ContextWithFields(c.Request.Context(), logger.Uint64("problem_id", param.ProblemID))
+
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		gintool.GinResponse(c, &gintool.Response{Code: http.StatusBadRequest, Message: "file is required"})
+		h.log.ErrorContext(ctx, "UploadProblemTestcase get file failed", logger.Error(err))
+		return
+	}
+
+	tmpDir, err := os.MkdirTemp("", "oj_tc_*")
+	if err != nil {
+		gintool.GinResponse(c, &gintool.Response{Code: http.StatusInternalServerError, Message: "internal error"})
+		h.log.ErrorContext(ctx, "UploadProblemTestcase create temp dir failed", logger.Error(err))
+		return
+	}
+	defer os.RemoveAll(tmpDir)
+	tmpPath := tmpDir + "/upload.zip"
+	if err = c.SaveUploadedFile(fileHeader, tmpPath); err != nil {
+		gintool.GinResponse(c, &gintool.Response{Code: http.StatusInternalServerError, Message: "failed to save upload"})
+		h.log.ErrorContext(ctx, "UploadProblemTestcase save file failed", logger.Error(err))
+		return
+	}
+
+	zr, err := zip.OpenReader(tmpPath)
+	if err != nil {
+		gintool.GinResponse(c, &gintool.Response{Code: http.StatusBadRequest, Message: "invalid zip file"})
+		h.log.ErrorContext(ctx, "UploadProblemTestcase open zip failed", logger.Error(err))
+		return
+	}
+	defer zr.Close()
+
+	base := "/testcases"
+	if _, err := os.Stat(base); os.IsNotExist(err) {
+		base = "./testcases"
+	}
+	destRoot := base + "/" + strconv.FormatUint(param.ProblemID, 10)
+	_ = os.RemoveAll(destRoot)
+	if err := os.MkdirAll(destRoot, 0755); err != nil {
+		gintool.GinResponse(c, &gintool.Response{Code: http.StatusInternalServerError, Message: "failed to prepare dest"})
+		h.log.ErrorContext(ctx, "UploadProblemTestcase mkdir failed", logger.Error(err))
+		return
+	}
+
+	for _, f := range zr.File {
+		parts := strings.Split(f.Name, "/")
+		name := parts[len(parts)-1]
+		if name == "." || strings.HasPrefix(name, "..") {
+			continue
+		}
+		target := destRoot + "/" + name
+		if !strings.HasPrefix(target, destRoot+string(os.PathSeparator)) && target != destRoot {
+			gintool.GinResponse(c, &gintool.Response{Code: http.StatusBadRequest, Message: "invalid zip entry"})
+			return
+		}
+		if f.FileInfo().IsDir() {
+			if err := os.MkdirAll(target, 0755); err != nil {
+				gintool.GinResponse(c, &gintool.Response{Code: http.StatusInternalServerError, Message: "failed to create dir"})
+				h.log.ErrorContext(ctx, "UploadProblemTestcase mkdir entry failed", logger.Error(err), logger.String("entry", name))
+				return
+			}
+			continue
+		}
+		// 仅为文件创建父目录，避免将文件路径创建为目录导致“is a directory”
+		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+			gintool.GinResponse(c, &gintool.Response{Code: http.StatusInternalServerError, Message: "failed to create dir"})
+			h.log.ErrorContext(ctx, "UploadProblemTestcase mkdir parent failed", logger.Error(err))
+			return
+		}
+		rc, err := f.Open()
+		if err != nil {
+			gintool.GinResponse(c, &gintool.Response{Code: http.StatusInternalServerError, Message: "failed to read zip entry"})
+			h.log.ErrorContext(ctx, "UploadProblemTestcase open entry failed", logger.Error(err))
+			return
+		}
+		destFile, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+		if err != nil {
+			rc.Close()
+			gintool.GinResponse(c, &gintool.Response{Code: http.StatusInternalServerError, Message: "failed to write file"})
+			h.log.ErrorContext(ctx, "UploadProblemTestcase open target failed", logger.Error(err), logger.String("target", target))
+			return
+		}
+		if _, err := io.Copy(destFile, rc); err != nil {
+			destFile.Close()
+			rc.Close()
+			gintool.GinResponse(c, &gintool.Response{Code: http.StatusInternalServerError, Message: "failed to write file"})
+			h.log.ErrorContext(ctx, "UploadProblemTestcase copy failed", logger.Error(err))
+			return
+		}
+		destFile.Close()
+		rc.Close()
+	}
+
+	gintool.GinResponse(c, &gintool.Response{Code: http.StatusOK, Message: "success"})
 }

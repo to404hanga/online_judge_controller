@@ -5,10 +5,10 @@ package main
 import (
 	"github.com/google/wire"
 	"github.com/to404hanga/online_judge_controller/cmd/controller/ioc"
+	"github.com/to404hanga/online_judge_controller/event"
 	commonioc "github.com/to404hanga/online_judge_controller/ioc"
 	"github.com/to404hanga/online_judge_controller/service"
 	"github.com/to404hanga/online_judge_controller/web"
-	"github.com/to404hanga/online_judge_controller/event"
 )
 
 func BuildDependency() *web.GinServer {
@@ -17,7 +17,6 @@ func BuildDependency() *web.GinServer {
 		commonioc.InitLogger,
 		commonioc.InitJWTHandler,
 		commonioc.InitRedis,
-		commonioc.InitMinIO,
 		commonioc.InitKafka,
 		commonioc.InitSyncProducer,
 

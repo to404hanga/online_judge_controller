@@ -8,7 +8,6 @@ import (
 	"github.com/to404hanga/online_judge_controller/constants"
 	"github.com/to404hanga/online_judge_controller/model"
 	"github.com/to404hanga/online_judge_controller/pkg/gintool"
-	"github.com/to404hanga/online_judge_controller/pkg/minio"
 	"github.com/to404hanga/online_judge_controller/service"
 	"github.com/to404hanga/pkg404/logger"
 	loggerv2 "github.com/to404hanga/pkg404/logger/v2"
@@ -17,7 +16,7 @@ import (
 const SubmissionBucket = "submission"
 
 type SubmissionHandler struct {
-	minioSvc                *minio.MinIOService
+	//minioSvc                *minio.MinIOService
 	submissionSvc           service.SubmissionService
 	competitionSvc          service.CompetitionService
 	log                     loggerv2.Logger
@@ -28,9 +27,8 @@ type SubmissionHandler struct {
 
 var _ Handler = (*SubmissionHandler)(nil)
 
-func NewSubmissionHandler(minioSvc *minio.MinIOService, submissionSvc service.SubmissionService, competitionSvc service.CompetitionService, log loggerv2.Logger, bucket string, uploadDurationSeconds, downloadDurationSeconds int) *SubmissionHandler {
+func NewSubmissionHandler(submissionSvc service.SubmissionService, competitionSvc service.CompetitionService, log loggerv2.Logger, bucket string, uploadDurationSeconds, downloadDurationSeconds int) *SubmissionHandler {
 	return &SubmissionHandler{
-		minioSvc:                minioSvc,
 		submissionSvc:           submissionSvc,
 		competitionSvc:          competitionSvc,
 		log:                     log,

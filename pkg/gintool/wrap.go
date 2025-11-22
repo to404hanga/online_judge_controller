@@ -2,6 +2,7 @@ package gintool
 
 import (
 	"net/http"
+	"reflect"
 
 	"github.com/gin-gonic/gin"
 	"github.com/to404hanga/online_judge_controller/constants"
@@ -15,9 +16,15 @@ import (
 func WrapHandler[T model.CommonParamInterface](h func(c *gin.Context, pType T), log loggerv2.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var param T
+		// 确保指针类型的 T 不为 nil，避免在 ExtractOperator 中调用 SetOperator 时报空指针
+		rv := reflect.ValueOf(param)
+		if rv.IsValid() && rv.Kind() == reflect.Ptr && rv.IsNil() {
+			param = reflect.New(rv.Type().Elem()).Interface().(T)
+		}
+
 		// 1) URI
 		if len(c.Params) > 0 {
-			if err := c.ShouldBindUri(&param); err != nil {
+			if err := c.ShouldBindUri(param); err != nil {
 				GinResponse(c, &Response{
 					Code:    http.StatusBadRequest,
 					Message: err.Error(),
@@ -28,7 +35,7 @@ func WrapHandler[T model.CommonParamInterface](h func(c *gin.Context, pType T), 
 		}
 
 		// 2) Header
-		err := c.ShouldBindHeader(&param)
+		err := c.ShouldBindHeader(param)
 		if err != nil {
 			GinResponse(c, &Response{
 				Code:    http.StatusBadRequest,
@@ -40,7 +47,7 @@ func WrapHandler[T model.CommonParamInterface](h func(c *gin.Context, pType T), 
 
 		// 3) Query/Form
 		if c.Request.URL != nil && c.Request.URL.RawQuery != "" {
-			err = c.ShouldBindQuery(&param)
+			err = c.ShouldBindQuery(param)
 			if err != nil {
 				GinResponse(c, &Response{
 					Code:    http.StatusBadRequest,
@@ -52,7 +59,7 @@ func WrapHandler[T model.CommonParamInterface](h func(c *gin.Context, pType T), 
 		}
 
 		// 4) JSON
-		err = c.ShouldBindJSON(&param)
+		err = c.ShouldBindJSON(param)
 		if err != nil {
 			GinResponse(c, &Response{
 				Code:    http.StatusBadRequest,
@@ -80,6 +87,12 @@ func WrapHandler[T model.CommonParamInterface](h func(c *gin.Context, pType T), 
 func WrapWithoutBodyHandler[T model.CommonParamInterface](h func(c *gin.Context, pType T), log loggerv2.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var param T
+
+		// 确保指针类型的 T 不为 nil，避免在 ExtractOperator 中调用 SetOperator 时报空指针
+		rv := reflect.ValueOf(param)
+		if rv.IsValid() && rv.Kind() == reflect.Ptr && rv.IsNil() {
+			param = reflect.New(rv.Type().Elem()).Interface().(T)
+		}
 
 		err := ExtractOperator(c, param)
 		if err != nil {

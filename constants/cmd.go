@@ -8,6 +8,7 @@ const (
 	GetProblemTestcaseUploadPresignedURLPath   = "/GetProblemTestcaseUploadPresignedURL"   // 获取题目测试用例上传预签名 URL
 	GetProblemTestcaseDownloadPresignedURLPath = "/GetProblemTestcaseDownloadPresignedURL" // 获取题目测试用例下载预签名 URL
 	GetProblemListPath                         = "/GetProblemList"                         // 获取题目列表
+	UploadProblemTestcasePath                  = "/UploadProblemTestcase"                  // 上传题目测试用例
 )
 
 const (
