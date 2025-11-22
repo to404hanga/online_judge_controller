@@ -50,14 +50,13 @@ func NewProblemService(db *gorm.DB, rdb redis.Cmdable, log loggerv2.Logger) Prob
 // CreateProblem 创建题目
 func (s *ProblemServiceImpl) CreateProblem(ctx context.Context, param *model.CreateProblemParam) error {
 	problem := ojmodel.Problem{
-		Title:          param.Title,
-		Description:    param.Description,
-		TestcaseZipURL: param.TestcaseZipURL,
-		Visible:        pointer.ToPtr(ojmodel.ProblemVisible(*param.Visible)),
-		TimeLimit:      param.TimeLimit,
-		MemoryLimit:    param.MemoryLimit,
-		CreatorID:      param.Operator,
-		UpdaterID:      param.Operator,
+		Title:       param.Title,
+		Description: param.Description,
+		Visible:     pointer.ToPtr(ojmodel.ProblemVisible(*param.Visible)),
+		TimeLimit:   param.TimeLimit,
+		MemoryLimit: param.MemoryLimit,
+		CreatorID:   param.Operator,
+		UpdaterID:   param.Operator,
 	}
 	err := s.db.WithContext(ctx).Create(&problem).Error
 	if err != nil {
@@ -76,9 +75,6 @@ func (s *ProblemServiceImpl) UpdateProblem(ctx context.Context, param *model.Upd
 	}
 	if param.Description != nil {
 		updates["description"] = *param.Description
-	}
-	if param.TestcaseZipURL != nil {
-		updates["testcase_zip_url"] = *param.TestcaseZipURL
 	}
 	if param.Status != nil {
 		updates["status"] = *param.Status

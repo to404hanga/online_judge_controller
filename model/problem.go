@@ -10,7 +10,6 @@ type CreateProblemParam struct {
 	Title           string `json:"title" binding:"required"`
 	Description     string `json:"description" binding:"required"`                   // 题面的描述
 	DescriptionHash string `header:"X-Description-Hash" binding:"required"`          // 题面的描述哈希值, 字母为小写
-	TestcaseZipURL  string `json:"testcase_zip_url" binding:"required"`              // 测试用例的压缩包 oss url(去除固定前缀)
 	TimeLimit       int    `json:"time_limit" binding:"required,min=50,max=30000"`   // 测试用例的时间限制(单位：豪秒)
 	MemoryLimit     int    `json:"memory_limit" binding:"required,min=128,max=1024"` // 测试用例的内存限制(单位：MB)
 	Visible         *int8  `json:"visible" binding:"required,oneof=0 1"`             // 非比赛期间是否可见
@@ -23,7 +22,6 @@ type UpdateProblemParam struct {
 	Title           *string `json:"title"`
 	Description     *string `json:"description"`                                       // 题面的描述
 	DescriptionHash *string `header:"X-Description-Hash"`                              // 题面的描述哈希值, 字母为小写
-	TestcaseZipURL  *string `json:"testcase_zip_url"`                                  // 测试用例的压缩包 oss url(去除固定前缀)
 	Status          *int8   `json:"status" binding:"omitempty,oneof=0 1 2"`            // 题目状态
 	TimeLimit       *int    `json:"time_limit" binding:"omitempty,min=50,max=30000"`   // 测试用例的时间限制(单位：豪秒)
 	MemoryLimit     *int    `json:"memory_limit" binding:"omitempty,min=128,max=1024"` // 测试用例的内存限制(单位：MB)
