@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/to404hanga/online_judge_controller/constants"
 	"github.com/to404hanga/online_judge_controller/model"
 	"github.com/to404hanga/online_judge_controller/web/jwt"
@@ -24,7 +25,11 @@ func WrapHandler[T model.CommonParamInterface](h func(c *gin.Context, pType T), 
 
 		// 1) URI
 		if len(c.Params) > 0 {
-			if err := c.ShouldBindUri(param); err != nil {
+			m := make(map[string][]string, len(c.Params))
+			for _, v := range c.Params {
+				m[v.Key] = []string{v.Value}
+			}
+			if err := binding.Uri.BindUri(m, param); err != nil {
 				GinResponse(c, &Response{
 					Code:    http.StatusBadRequest,
 					Message: err.Error(),
@@ -35,7 +40,7 @@ func WrapHandler[T model.CommonParamInterface](h func(c *gin.Context, pType T), 
 		}
 
 		// 2) Header
-		err := c.ShouldBindHeader(param)
+		err := binding.Header.Bind(c.Request, param)
 		if err != nil {
 			GinResponse(c, &Response{
 				Code:    http.StatusBadRequest,
@@ -47,7 +52,7 @@ func WrapHandler[T model.CommonParamInterface](h func(c *gin.Context, pType T), 
 
 		// 3) Query/Form
 		if c.Request.URL != nil && c.Request.URL.RawQuery != "" {
-			err = c.ShouldBindQuery(param)
+			err = binding.Query.Bind(c.Request, param)
 			if err != nil {
 				GinResponse(c, &Response{
 					Code:    http.StatusBadRequest,
@@ -59,13 +64,23 @@ func WrapHandler[T model.CommonParamInterface](h func(c *gin.Context, pType T), 
 		}
 
 		// 4) JSON
-		err = c.ShouldBindJSON(param)
+		err = binding.JSON.Bind(c.Request, param)
 		if err != nil {
 			GinResponse(c, &Response{
 				Code:    http.StatusBadRequest,
 				Message: err.Error(),
 			})
 			log.ErrorContext(c.Request.Context(), "WrapHandler bind json failed", logger.Error(err))
+			return
+		}
+
+		err = Validator.Struct(param)
+		if err != nil {
+			GinResponse(c, &Response{
+				Code:    http.StatusBadRequest,
+				Message: err.Error(),
+			})
+			log.ErrorContext(c.Request.Context(), "WrapHandler validate failed", logger.Error(err))
 			return
 		}
 
@@ -114,7 +129,11 @@ func WrapCompetitionHandler[T model.CompetitionCommonParamInterface](h func(c *g
 		var param T
 		// 1) URI
 		if len(c.Params) > 0 {
-			if err := c.ShouldBindUri(&param); err != nil {
+			m := make(map[string][]string, len(c.Params))
+			for _, v := range c.Params {
+				m[v.Key] = []string{v.Value}
+			}
+			if err := binding.Uri.BindUri(m, &param); err != nil {
 				GinResponse(c, &Response{
 					Code:    http.StatusBadRequest,
 					Message: err.Error(),
@@ -125,7 +144,7 @@ func WrapCompetitionHandler[T model.CompetitionCommonParamInterface](h func(c *g
 		}
 
 		// 2) Header
-		err := c.ShouldBindHeader(&param)
+		err := binding.Header.Bind(c.Request, &param)
 		if err != nil {
 			GinResponse(c, &Response{
 				Code:    http.StatusBadRequest,
@@ -137,7 +156,7 @@ func WrapCompetitionHandler[T model.CompetitionCommonParamInterface](h func(c *g
 
 		// 3) Query/Form
 		if c.Request.URL != nil && c.Request.URL.RawQuery != "" {
-			err = c.ShouldBindQuery(&param)
+			err = binding.Query.Bind(c.Request, &param)
 			if err != nil {
 				GinResponse(c, &Response{
 					Code:    http.StatusBadRequest,
@@ -149,13 +168,23 @@ func WrapCompetitionHandler[T model.CompetitionCommonParamInterface](h func(c *g
 		}
 
 		// 4) JSON
-		err = c.ShouldBindJSON(&param)
+		err = binding.JSON.Bind(c.Request, &param)
 		if err != nil {
 			GinResponse(c, &Response{
 				Code:    http.StatusBadRequest,
 				Message: err.Error(),
 			})
 			log.ErrorContext(c.Request.Context(), "WrapCompetitionHandler bind json failed", logger.Error(err))
+			return
+		}
+
+		err = Validator.Struct(param)
+		if err != nil {
+			GinResponse(c, &Response{
+				Code:    http.StatusBadRequest,
+				Message: err.Error(),
+			})
+			log.ErrorContext(c.Request.Context(), "WrapCompetitionHandler validate failed", logger.Error(err))
 			return
 		}
 

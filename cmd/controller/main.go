@@ -4,6 +4,7 @@ import (
 	"log"
 	_ "net/http/pprof"
 
+	"github.com/gin-gonic/gin"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
@@ -18,6 +19,8 @@ func main() {
 	if err := viper.ReadInConfig(); err != nil {
 		log.Panicf("read config file failed: %v", err)
 	}
+
+	gin.DisableBindValidation()
 
 	app := BuildDependency()
 	log.Println("gin server start")
