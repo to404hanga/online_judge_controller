@@ -55,6 +55,7 @@ func (s *ProblemServiceImpl) CreateProblem(ctx context.Context, param *model.Cre
 		Visible:     pointer.ToPtr(ojmodel.ProblemVisible(*param.Visible)),
 		TimeLimit:   param.TimeLimit,
 		MemoryLimit: param.MemoryLimit,
+		Status:      pointer.ToPtr(ojmodel.ProblemStatusUnpublished),
 		CreatorID:   param.Operator,
 		UpdaterID:   param.Operator,
 	}
