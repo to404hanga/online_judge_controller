@@ -75,7 +75,7 @@ func WrapHandler[T model.CommonParamInterface](h func(c *gin.Context, pType T), 
 		// 	return
 		// }
 		jsonBytes, _ := c.GetRawData()
-		if jsonBytes != nil {
+		if len(jsonBytes) > 0 {
 			err = json.Unmarshal(jsonBytes, param)
 			if err != nil {
 				GinResponse(c, &Response{
@@ -191,7 +191,7 @@ func WrapCompetitionHandler[T model.CompetitionCommonParamInterface](h func(c *g
 		// 	return
 		// }
 		jsonBytes, _ := c.GetRawData()
-		if jsonBytes != nil {
+		if len(jsonBytes) > 0 {
 			err = json.Unmarshal(jsonBytes, param)
 			if err != nil {
 				GinResponse(c, &Response{

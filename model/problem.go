@@ -58,8 +58,8 @@ type GetProblemListParam struct {
 	TimeLimit   *int   `json:"time_limit"`
 	MemoryLimit *int   `json:"memory_limit"`
 
-	Page     int `query:"page" binding:"required,min=1"`
-	PageSize int `query:"page_size" binding:"required,min=10,max=100"`
+	Page     int `form:"page" binding:"required,min=1"`
+	PageSize int `form:"page_size" binding:"required,min=10,max=100"`
 }
 
 type GetProblemListResponse struct {
