@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	"github.com/to404hanga/online_judge_controller/config"
+	"github.com/to404hanga/online_judge_controller/pkg/gintool"
 	"github.com/to404hanga/online_judge_controller/web"
 	"github.com/to404hanga/online_judge_controller/web/jwt"
 	"github.com/to404hanga/online_judge_controller/web/middleware"
@@ -40,6 +41,7 @@ func InitGinServer(l loggerv2.Logger, jwtHandler jwt.Handler, db *gorm.DB, compe
 	engine.Use(
 		corsBuilder.Build(),
 		jwtBuilder.CheckCompetition(),
+		gintool.ContextMiddleware(),
 	)
 
 	competitionHandler.Register(engine)

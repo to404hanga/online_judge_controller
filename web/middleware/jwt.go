@@ -65,5 +65,6 @@ func (m *JWTMiddlewareBuilder) CheckCompetition() gin.HandlerFunc {
 		}
 
 		ctx.Set(constants.ContextUserClaimsKey, uc)
+		ctx.Next()
 	}
 }
