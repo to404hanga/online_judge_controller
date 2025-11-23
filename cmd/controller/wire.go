@@ -30,8 +30,10 @@ func BuildDependency() *web.GinServer {
 
 		web.NewCompetitionHandler,
 		web.NewHealthHandler,
-		commonioc.InitProblemHandler,
-		commonioc.InitSubmissionHandler,
+		// commonioc.InitProblemHandler,
+		web.NewProblemHandler,
+		// commonioc.InitSubmissionHandler,
+		web.NewSubmissionHandler,
 
 		ioc.InitGinServer,
 	)

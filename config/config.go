@@ -79,16 +79,16 @@ func (MinIOConfig) Key() string {
 	return "minio"
 }
 
-type ProblemMinIOConfig struct {
-	ProblemBucket           string `yaml:"problemBucket"`
-	TestcaseBucket          string `yaml:"testcaseBucket"`
-	UploadDurationSeconds   int    `yaml:"uploadDurationSeconds"`
-	DownloadDurationSeconds int    `yaml:"downloadDurationSeconds"`
-}
+// type ProblemMinIOConfig struct {
+// 	ProblemBucket           string `yaml:"problemBucket"`
+// 	TestcaseBucket          string `yaml:"testcaseBucket"`
+// 	UploadDurationSeconds   int    `yaml:"uploadDurationSeconds"`
+// 	DownloadDurationSeconds int    `yaml:"downloadDurationSeconds"`
+// }
 
-func (ProblemMinIOConfig) Key() string {
-	return "minio.configs.problem"
-}
+// func (ProblemMinIOConfig) Key() string {
+// 	return "minio.configs.problem"
+// }
 
 type SubmissionMinIOConfig struct {
 	Bucket                  string `yaml:"bucket"`

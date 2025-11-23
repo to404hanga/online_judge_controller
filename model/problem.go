@@ -28,25 +28,25 @@ type UpdateProblemParam struct {
 	Visible         *int8   `json:"visible" binding:"omitempty,oneof=0 1"`             // 非比赛期间是否可见
 }
 
-type GetProblemTestcaseUploadPresignedURLParam struct {
-	CommonParam `json:"-"`
+// type GetProblemTestcaseUploadPresignedURLParam struct {
+// 	CommonParam `json:"-"`
 
-	Hash string `header:"X-Testcase-Hash" binding:"required"`
-}
+// 	Hash string `header:"X-Testcase-Hash" binding:"required"`
+// }
 
-type GetProblemTestcaseUploadPresignedURLResponse struct {
-	PresignedURL string `json:"presigned_url"`
-}
+// type GetProblemTestcaseUploadPresignedURLResponse struct {
+// 	PresignedURL string `json:"presigned_url"`
+// }
 
-type GetProblemTestcaseDownloadPresignedURLParam struct {
-	CommonParam `json:"-"`
+// type GetProblemTestcaseDownloadPresignedURLParam struct {
+// 	CommonParam `json:"-"`
 
-	ProblemID uint64 `json:"problem_id" binding:"required"`
-}
+// 	ProblemID uint64 `json:"problem_id" binding:"required"`
+// }
 
-type GetProblemTestcaseDownloadPresignedURLResponse struct {
-	PresignedURL string `json:"presigned_url"`
-}
+// type GetProblemTestcaseDownloadPresignedURLResponse struct {
+// 	PresignedURL string `json:"presigned_url"`
+// }
 
 type GetProblemListParam struct {
 	CommonParam `json:"-"`
@@ -71,4 +71,14 @@ type UploadProblemTestcaseParam struct {
 	CommonParam `json:"-"`
 
 	ProblemID uint64 `json:"problem_id" binding:"required"`
+}
+
+type GetProblemParam struct {
+	CommonParam `json:"-"`
+
+	ProblemID uint64 `json:"problem_id" binding:"required"`
+}
+
+type GetProblemResponse struct {
+	Model *ojmodel.Problem `json:",inline"`
 }

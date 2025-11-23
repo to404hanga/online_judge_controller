@@ -16,25 +16,22 @@ import (
 const SubmissionBucket = "submission"
 
 type SubmissionHandler struct {
-	//minioSvc                *minio.MinIOService
-	submissionSvc           service.SubmissionService
-	competitionSvc          service.CompetitionService
-	log                     loggerv2.Logger
-	bucket                  string
-	uploadDurationSeconds   int
-	downloadDurationSeconds int
+	// minioSvc                *minio.MinIOService
+	submissionSvc  service.SubmissionService
+	competitionSvc service.CompetitionService
+	log            loggerv2.Logger
+	// bucket                  string
+	// uploadDurationSeconds   int
+	// downloadDurationSeconds int
 }
 
 var _ Handler = (*SubmissionHandler)(nil)
 
-func NewSubmissionHandler(submissionSvc service.SubmissionService, competitionSvc service.CompetitionService, log loggerv2.Logger, bucket string, uploadDurationSeconds, downloadDurationSeconds int) *SubmissionHandler {
+func NewSubmissionHandler(submissionSvc service.SubmissionService, competitionSvc service.CompetitionService, log loggerv2.Logger) *SubmissionHandler {
 	return &SubmissionHandler{
-		submissionSvc:           submissionSvc,
-		competitionSvc:          competitionSvc,
-		log:                     log,
-		bucket:                  bucket,
-		uploadDurationSeconds:   uploadDurationSeconds,
-		downloadDurationSeconds: downloadDurationSeconds,
+		submissionSvc:  submissionSvc,
+		competitionSvc: competitionSvc,
+		log:            log,
 	}
 }
 

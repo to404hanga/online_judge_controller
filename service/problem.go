@@ -21,8 +21,8 @@ type ProblemService interface {
 	CreateProblem(ctx context.Context, param *model.CreateProblemParam) error
 	// UpdateProblem 更新题目
 	UpdateProblem(ctx context.Context, param *model.UpdateProblemParam) error
-	// CheckExistByTestcaseZipURL 检查测试用例压缩包 URL 是否存在
-	CheckExistByTestcaseZipURL(ctx context.Context, testcaseZipURL string) (bool, error)
+	// // CheckExistByTestcaseZipURL 检查测试用例压缩包 URL 是否存在
+	// CheckExistByTestcaseZipURL(ctx context.Context, testcaseZipURL string) (bool, error)
 	// GetProblemByID 获取题目
 	GetProblemByID(ctx context.Context, problemID uint64) (*ojmodel.Problem, error)
 	// GetProblemList 获取题目列表
@@ -98,23 +98,28 @@ func (s *ProblemServiceImpl) UpdateProblem(ctx context.Context, param *model.Upd
 		if err != nil {
 			return fmt.Errorf("UpdateProblem failed: %w", err)
 		}
-		s.rdb.Del(ctx, fmt.Sprintf(problemKey, param.ProblemID))
+		// 异步删除 redis 缓存, 带重试
+		retry.Do(ctx, func() error {
+			return s.rdb.Del(ctx, fmt.Sprintf(problemKey, param.ProblemID)).Err()
+		}, retry.WithAsync(true), retry.WithCallback(func(err error) {
+			s.log.ErrorContext(ctx, "UpdateProblem: failed to delete cache", logger.Error(err))
+		}))
 	}
 
 	return nil
 }
 
-// CheckExistByTestcaseZipURL 检查测试用例压缩包 URL 是否存在
-func (s *ProblemServiceImpl) CheckExistByTestcaseZipURL(ctx context.Context, testcaseZipURL string) (bool, error) {
-	var count int64
-	err := s.db.WithContext(ctx).Model(&ojmodel.Problem{}).
-		Where("testcase_zip_url = ?", testcaseZipURL).
-		Count(&count).Error
-	if err != nil {
-		return false, fmt.Errorf("CheckExistByTestcaseZipURL failed: %w", err)
-	}
-	return count > 0, nil
-}
+// // CheckExistByTestcaseZipURL 检查测试用例压缩包 URL 是否存在
+// func (s *ProblemServiceImpl) CheckExistByTestcaseZipURL(ctx context.Context, testcaseZipURL string) (bool, error) {
+// 	var count int64
+// 	err := s.db.WithContext(ctx).Model(&ojmodel.Problem{}).
+// 		Where("testcase_zip_url = ?", testcaseZipURL).
+// 		Count(&count).Error
+// 	if err != nil {
+// 		return false, fmt.Errorf("CheckExistByTestcaseZipURL failed: %w", err)
+// 	}
+// 	return count > 0, nil
+// }
 
 // GetProblemByID 获取题目
 func (s *ProblemServiceImpl) GetProblemByID(ctx context.Context, problemID uint64) (*ojmodel.Problem, error) {

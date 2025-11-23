@@ -23,23 +23,19 @@ import (
 type ProblemHandler struct {
 	problemSvc service.ProblemService
 	//minioSvc                *minio.MinIOService
-	log                     loggerv2.Logger
-	problemBucket           string
-	testcaseBucket          string
-	uploadDurationSeconds   int
-	downloadDurationSeconds int
+	log loggerv2.Logger
+	// problemBucket           string
+	// testcaseBucket          string
+	// uploadDurationSeconds   int
+	// downloadDurationSeconds int
 }
 
 var _ Handler = (*ProblemHandler)(nil)
 
-func NewProblemHandler(problemSvc service.ProblemService, log loggerv2.Logger, problemBucket, testcaseBucket string, uploadDurationSeconds, downloadDurationSeconds int) *ProblemHandler {
+func NewProblemHandler(problemSvc service.ProblemService, log loggerv2.Logger) *ProblemHandler {
 	return &ProblemHandler{
-		problemSvc:              problemSvc,
-		log:                     log,
-		problemBucket:           problemBucket,
-		testcaseBucket:          testcaseBucket,
-		uploadDurationSeconds:   uploadDurationSeconds,
-		downloadDurationSeconds: downloadDurationSeconds,
+		problemSvc: problemSvc,
+		log:        log,
 	}
 }
 
@@ -50,6 +46,7 @@ func (h *ProblemHandler) Register(r *gin.Engine) {
 	// r.GET(constants.GetProblemTestcaseDownloadPresignedURLPath, gintool.WrapHandler(h.GetProblemTestcaseDownloadPresignedURL, h.log))
 	r.GET(constants.GetProblemListPath, gintool.WrapHandler(h.GetProblemList, h.log))
 	r.POST(constants.UploadProblemTestcasePath, gintool.WrapWithoutBodyHandler(h.UploadProblemTestcase, h.log))
+	r.GET(constants.GetProblemPath, gintool.WrapHandler(h.GetProblem, h.log))
 }
 
 func (h *ProblemHandler) CreateProblem(c *gin.Context, param *model.CreateProblemParam) {
@@ -327,4 +324,22 @@ func (h *ProblemHandler) UploadProblemTestcase(c *gin.Context, param *model.Uplo
 	}
 
 	gintool.GinResponse(c, &gintool.Response{Code: http.StatusOK, Message: "success"})
+}
+
+func (h *ProblemHandler) GetProblem(c *gin.Context, param *model.GetProblemParam) {
+	ctx := loggerv2.ContextWithFields(c.Request.Context(), logger.Uint64("problem_id", param.ProblemID))
+
+	problem, err := h.problemSvc.GetProblemByID(ctx, param.ProblemID)
+	if err != nil {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusInternalServerError,
+			Message: "internal error",
+		})
+		h.log.ErrorContext(ctx, "GetProblemByID failed", logger.Error(err))
+		return
+	}
+
+	gintool.GinResponse(c, &gintool.Response{Code: http.StatusOK, Data: model.GetProblemResponse{
+		Model: problem,
+	}})
 }
