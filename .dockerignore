@@ -3,6 +3,7 @@ pkg/minio/*
 cmd/cronjob/ioc/minio_cleaner.go
 ioc/problem.go
 ioc/submission.go
+ioc/minio.go
 job/cleaner/minio_cleaner.go
 
 # Git 相关文件
