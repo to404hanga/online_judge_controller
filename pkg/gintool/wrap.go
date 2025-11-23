@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"reflect"
 
+	json "github.com/bytedance/sonic"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/to404hanga/online_judge_controller/constants"
@@ -64,14 +65,26 @@ func WrapHandler[T model.CommonParamInterface](h func(c *gin.Context, pType T), 
 		}
 
 		// 4) JSON
-		err = binding.JSON.Bind(c.Request, param)
-		if err != nil {
-			GinResponse(c, &Response{
-				Code:    http.StatusBadRequest,
-				Message: err.Error(),
-			})
-			log.ErrorContext(c.Request.Context(), "WrapHandler bind json failed", logger.Error(err))
-			return
+		// err = binding.JSON.Bind(c.Request, param)
+		// if err != nil {
+		// 	GinResponse(c, &Response{
+		// 		Code:    http.StatusBadRequest,
+		// 		Message: err.Error(),
+		// 	})
+		// 	log.ErrorContext(c.Request.Context(), "WrapHandler bind json failed", logger.Error(err))
+		// 	return
+		// }
+		jsonBytes, _ := c.GetRawData()
+		if jsonBytes != nil {
+			err = json.Unmarshal(jsonBytes, param)
+			if err != nil {
+				GinResponse(c, &Response{
+					Code:    http.StatusBadRequest,
+					Message: err.Error(),
+				})
+				log.ErrorContext(c.Request.Context(), "WrapHandler bind json failed", logger.Error(err))
+				return
+			}
 		}
 
 		err = Validator.Struct(param)
@@ -168,14 +181,26 @@ func WrapCompetitionHandler[T model.CompetitionCommonParamInterface](h func(c *g
 		}
 
 		// 4) JSON
-		err = binding.JSON.Bind(c.Request, &param)
-		if err != nil {
-			GinResponse(c, &Response{
-				Code:    http.StatusBadRequest,
-				Message: err.Error(),
-			})
-			log.ErrorContext(c.Request.Context(), "WrapCompetitionHandler bind json failed", logger.Error(err))
-			return
+		// err = binding.JSON.Bind(c.Request, &param)
+		// if err != nil {
+		// 	GinResponse(c, &Response{
+		// 		Code:    http.StatusBadRequest,
+		// 		Message: err.Error(),
+		// 	})
+		// 	log.ErrorContext(c.Request.Context(), "WrapCompetitionHandler bind json failed", logger.Error(err))
+		// 	return
+		// }
+		jsonBytes, _ := c.GetRawData()
+		if jsonBytes != nil {
+			err = json.Unmarshal(jsonBytes, param)
+			if err != nil {
+				GinResponse(c, &Response{
+					Code:    http.StatusBadRequest,
+					Message: err.Error(),
+				})
+				log.ErrorContext(c.Request.Context(), "WrapHandler bind json failed", logger.Error(err))
+				return
+			}
 		}
 
 		err = Validator.Struct(param)
