@@ -29,7 +29,10 @@ type ProblemService interface {
 	GetProblemList(ctx context.Context, param *model.GetProblemListParam) ([]ojmodel.Problem, error)
 }
 
-const problemKey = "problem:%d"
+const (
+	problemKey            = "problem:%d"
+	competitionProblemKey = "problem:%d:competition:%d"
+)
 
 type ProblemServiceImpl struct {
 	db  *gorm.DB
@@ -126,7 +129,8 @@ func (s *ProblemServiceImpl) UpdateProblem(ctx context.Context, param *model.Upd
 func (s *ProblemServiceImpl) GetProblemByID(ctx context.Context, problemID, competitionID uint64) (*ojmodel.Problem, error) {
 	var problem ojmodel.Problem
 
-	key := fmt.Sprintf(problemKey, problemID)
+	// 如果是非赛时可见的题目, 其键为 problem:%d:0
+	key := fmt.Sprintf(competitionProblemKey, problemID, competitionID)
 	problemBytes, err := s.rdb.Get(ctx, key).Bytes()
 	if err == nil {
 		if err = json.Unmarshal(problemBytes, &problem); err == nil {
@@ -165,6 +169,22 @@ func (s *ProblemServiceImpl) GetProblemByID(ctx context.Context, problemID, comp
 	}
 	s.log.WarnContext(ctx, "GetProblemByID from redis recheck failed", logger.Error(err))
 
+	// 校验题目是否在比赛中启用
+	if competitionID != 0 {
+		var cnt int64
+		err = s.db.WithContext(ctx).Model(&ojmodel.CompetitionProblem{}).
+			Where("competition_id = ?", competitionID).
+			Where("problem_id = ?", problemID).
+			Where("status = ?", ojmodel.CompetitionProblemStatusEnabled).
+			Count(&cnt).Error
+		if err != nil {
+			return nil, fmt.Errorf("GetProblemByID failed: %w", err)
+		}
+		if cnt == 0 {
+			return nil, fmt.Errorf("GetProblemByID failed: problem %d not enabled in competition %d", problemID, competitionID)
+		}
+	}
+
 	query := s.db.WithContext(ctx).Model(&ojmodel.Problem{}).
 		Where("id = ?", problemID)
 	if competitionID == 0 {
@@ -179,7 +199,9 @@ func (s *ProblemServiceImpl) GetProblemByID(ctx context.Context, problemID, comp
 
 	// 存入 redis
 	problemBytes, err = json.Marshal(problem)
-	if err == nil {
+	if err != nil {
+		s.log.ErrorContext(ctx, "GetProblemByID: failed to marshal problem", logger.Error(err))
+	} else {
 		// 过期时间设置为 8h
 		s.rdb.Set(ctx, key, problemBytes, 8*time.Hour)
 	}
