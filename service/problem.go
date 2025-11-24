@@ -24,7 +24,7 @@ type ProblemService interface {
 	// // CheckExistByTestcaseZipURL 检查测试用例压缩包 URL 是否存在
 	// CheckExistByTestcaseZipURL(ctx context.Context, testcaseZipURL string) (bool, error)
 	// GetProblemByID 获取题目
-	GetProblemByID(ctx context.Context, problemID uint64) (*ojmodel.Problem, error)
+	GetProblemByID(ctx context.Context, problemID, competitionID uint64) (*ojmodel.Problem, error)
 	// GetProblemList 获取题目列表
 	GetProblemList(ctx context.Context, param *model.GetProblemListParam) ([]ojmodel.Problem, error)
 }
@@ -122,7 +122,7 @@ func (s *ProblemServiceImpl) UpdateProblem(ctx context.Context, param *model.Upd
 // }
 
 // GetProblemByID 获取题目
-func (s *ProblemServiceImpl) GetProblemByID(ctx context.Context, problemID uint64) (*ojmodel.Problem, error) {
+func (s *ProblemServiceImpl) GetProblemByID(ctx context.Context, problemID, competitionID uint64) (*ojmodel.Problem, error) {
 	var problem ojmodel.Problem
 
 	key := fmt.Sprintf(problemKey, problemID)
@@ -147,7 +147,7 @@ func (s *ProblemServiceImpl) GetProblemByID(ctx context.Context, problemID uint6
 	if !ok {
 		// 等待 1s 后重试
 		time.Sleep(1 * time.Second)
-		return s.GetProblemByID(ctx, problemID)
+		return s.GetProblemByID(ctx, problemID, competitionID)
 	}
 	defer retry.Do(ctx, func() error {
 		return s.rdb.Del(ctx, lockKey).Err()
@@ -164,9 +164,14 @@ func (s *ProblemServiceImpl) GetProblemByID(ctx context.Context, problemID uint6
 	}
 	s.log.WarnContext(ctx, "GetProblemByID from redis recheck failed", logger.Error(err))
 
-	err = s.db.WithContext(ctx).Model(&ojmodel.Problem{}).
-		Where("id = ?", problemID).
-		First(&problem).Error
+	query := s.db.WithContext(ctx).Model(&ojmodel.Problem{}).
+		Where("id = ?", problemID)
+	if competitionID == 0 {
+		// 没有传入 competitionID, 只允许查看非比赛期间可见的题目
+		query = query.Where("visible = ?", ojmodel.ProblemVisibleTrue)
+	}
+
+	err = query.First(&problem).Error
 	if err != nil {
 		return nil, fmt.Errorf("GetProblemByID failed: %w", err)
 	}

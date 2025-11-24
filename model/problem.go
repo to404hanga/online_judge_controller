@@ -75,7 +75,7 @@ type UploadProblemTestcaseParam struct {
 }
 
 type GetProblemParam struct {
-	CommonParam `json:"-"`
+	CompetitionCommonParam `json:"-"`
 
 	ProblemID uint64 `json:"problem_id" binding:"required"`
 }
