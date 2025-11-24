@@ -52,6 +52,7 @@ type GetProblemListParam struct {
 	CommonParam `json:"-"`
 
 	Desc        bool   `json:"desc"`
+	OrderBy     string `json:"order_by" binding:"omitempty,oneof=id title time_limit memory_limit"`
 	Title       string `json:"title"`
 	Status      *int8  `json:"status" binding:"omitempty,oneof=0 1 2"`
 	Visible     *int8  `json:"visible" binding:"omitempty,oneof=0 1"`

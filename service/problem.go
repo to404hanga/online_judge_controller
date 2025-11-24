@@ -199,10 +199,14 @@ func (s *ProblemServiceImpl) GetProblemList(ctx context.Context, param *model.Ge
 	if param.MemoryLimit != nil {
 		query = query.Where("memory_limit = ?", *param.MemoryLimit)
 	}
+	orderBy := "id"
+	if param.OrderBy != "" {
+		orderBy = param.OrderBy
+	}
 	if param.Desc {
-		query = query.Order("id DESC")
+		query = query.Order(orderBy + " DESC")
 	} else {
-		query = query.Order("id ASC")
+		query = query.Order(orderBy + " ASC")
 	}
 
 	err := query.Limit(param.PageSize).
