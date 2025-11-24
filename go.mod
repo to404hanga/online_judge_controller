@@ -17,7 +17,7 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
 	github.com/to404hanga/online_judge_common v0.0.13
-	github.com/to404hanga/pkg404 v0.0.34
+	github.com/to404hanga/pkg404 v0.0.35
 	github.com/xuri/excelize/v2 v2.9.1
 	google.golang.org/protobuf v1.36.10
 	gorm.io/driver/mysql v1.6.0
