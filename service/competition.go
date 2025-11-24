@@ -83,6 +83,7 @@ func (s *CompetitionServiceImpl) CreateCompetition(ctx context.Context, param *m
 			problemTitle := ""
 			err = tx.Model(&ojmodel.Problem{}).
 				Where("id = ?", problem).
+				Where("status = ?", ojmodel.ProblemStatusPublished). // 只允许导入已发布的题目
 				Select("title").
 				Scan(&problemTitle).Error
 			if err != nil {
