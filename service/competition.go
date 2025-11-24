@@ -246,11 +246,14 @@ func (s *CompetitionServiceImpl) GetCompetitionProblemList(ctx context.Context, 
 		time.Sleep(1 * time.Second)
 		return s.GetCompetitionProblemList(ctx, competitionID)
 	}
-	defer retry.Do(ctx, func() error {
-		return s.rdb.Del(ctx, lockKey).Err()
-	}, retry.WithAsync(true), retry.WithCallback(func(err error) {
-		s.log.ErrorContext(ctx, "GetCompetitionProblemList: failed to delete lock", logger.Error(err))
-	}))
+	defer func() {
+		retryCtx := context.WithValue(context.Background(), loggerv2.FieldsKey, ctx.Value(loggerv2.FieldsKey))
+		retry.Do(retryCtx, func() error {
+			return s.rdb.Del(retryCtx, lockKey).Err()
+		}, retry.WithAsync(true), retry.WithCallback(func(err error) {
+			s.log.ErrorContext(retryCtx, "GetCompetitionProblemList: failed to delete lock", logger.Error(err))
+		}))
+	}()
 
 	// 获得锁后, 再次尝试从 redis 中获取
 	competitionProblemsBytes, err = s.rdb.Get(ctx, fmt.Sprintf(competitionProblemListKey, competitionID)).Bytes()
@@ -314,11 +317,14 @@ func (s *CompetitionServiceImpl) CheckUserInCompetition(ctx context.Context, com
 		time.Sleep(1 * time.Second)
 		return s.CheckUserInCompetition(ctx, competitionID, userID)
 	}
-	defer retry.Do(ctx, func() error {
-		return s.rdb.Del(ctx, lockKey).Err()
-	}, retry.WithAsync(true), retry.WithCallback(func(err error) {
-		s.log.ErrorContext(ctx, "CheckUserInCompetition: failed to delete lock", logger.Error(err))
-	}))
+	defer func() {
+		retryCtx := context.WithValue(context.Background(), loggerv2.FieldsKey, ctx.Value(loggerv2.FieldsKey))
+		retry.Do(retryCtx, func() error {
+			return s.rdb.Del(retryCtx, lockKey).Err()
+		}, retry.WithAsync(true), retry.WithCallback(func(err error) {
+			s.log.ErrorContext(retryCtx, "CheckUserInCompetition: failed to delete lock", logger.Error(err))
+		}))
+	}()
 
 	// 4. 获取锁后，再次检查缓存，防止在等待锁期间缓存已被其他协程加载
 	isMember, _ = s.rdb.SIsMember(ctx, userSetKey, userID).Result()
@@ -387,11 +393,14 @@ func (s *CompetitionServiceImpl) CheckCompetitionTime(ctx context.Context, compe
 		time.Sleep(1 * time.Second)
 		return s.CheckCompetitionTime(ctx, competitionID)
 	}
-	defer retry.Do(ctx, func() error {
-		return s.rdb.Del(ctx, lockKey).Err()
-	}, retry.WithAsync(true), retry.WithCallback(func(err error) {
-		s.log.ErrorContext(ctx, "CheckCompetitionTime: failed to delete lock", logger.Error(err))
-	}))
+	defer func() {
+		retryCtx := context.WithValue(context.Background(), loggerv2.FieldsKey, ctx.Value(loggerv2.FieldsKey))
+		retry.Do(retryCtx, func() error {
+			return s.rdb.Del(retryCtx, lockKey).Err()
+		}, retry.WithAsync(true), retry.WithCallback(func(err error) {
+			s.log.ErrorContext(retryCtx, "CheckCompetitionTime: failed to delete lock", logger.Error(err))
+		}))
+	}()
 
 	// 3. 获取锁后，再次检查缓存
 	metaBytes, err = s.rdb.Get(ctx, metaKey).Bytes()

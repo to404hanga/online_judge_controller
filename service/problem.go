@@ -102,11 +102,12 @@ func (s *ProblemServiceImpl) UpdateProblem(ctx context.Context, param *model.Upd
 			return fmt.Errorf("UpdateProblem failed: %w", err)
 		}
 		// 异步删除 redis 缓存, 带重试
-		retry.Do(ctx, func() error {
+		retryCtx := context.WithValue(context.Background(), loggerv2.FieldsKey, ctx.Value(loggerv2.FieldsKey))
+		retry.Do(retryCtx, func() error {
 			// 使用 Unlink 命令删除缓存, 可以异步执行, 不阻塞主流程
-			return s.rdb.Unlink(ctx, fmt.Sprintf(problemKey, param.ProblemID)).Err()
+			return s.rdb.Unlink(retryCtx, fmt.Sprintf(problemKey, param.ProblemID)).Err()
 		}, retry.WithAsync(true), retry.WithCallback(func(err error) {
-			s.log.ErrorContext(ctx, "UpdateProblem: failed to delete cache", logger.Error(err))
+			s.log.ErrorContext(retryCtx, "UpdateProblem: failed to delete cache", logger.Error(err))
 		}))
 	}
 
@@ -154,11 +155,14 @@ func (s *ProblemServiceImpl) GetProblemByID(ctx context.Context, problemID, comp
 		time.Sleep(1 * time.Second)
 		return s.GetProblemByID(ctx, problemID, competitionID)
 	}
-	defer retry.Do(ctx, func() error {
-		return s.rdb.Del(ctx, lockKey).Err()
-	}, retry.WithAsync(true), retry.WithCallback(func(err error) {
-		s.log.ErrorContext(ctx, "GetProblemByID: failed to delete lock", logger.Error(err))
-	}))
+	defer func() {
+		retryCtx := context.WithValue(context.Background(), loggerv2.FieldsKey, ctx.Value(loggerv2.FieldsKey))
+		retry.Do(retryCtx, func() error {
+			return s.rdb.Del(retryCtx, lockKey).Err()
+		}, retry.WithAsync(true), retry.WithCallback(func(err error) {
+			s.log.ErrorContext(retryCtx, "GetProblemByID: failed to delete lock", logger.Error(err))
+		}))
+	}()
 
 	// 获得锁后，再次尝试从 redis 中获取
 	problemBytes, err = s.rdb.Get(ctx, key).Bytes()
