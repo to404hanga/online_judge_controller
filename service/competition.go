@@ -9,6 +9,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	ojmodel "github.com/to404hanga/online_judge_common/model"
 	"github.com/to404hanga/online_judge_controller/model"
+	"github.com/to404hanga/online_judge_controller/pkg/pointer"
 	"github.com/to404hanga/pkg404/gotools/retry"
 	"github.com/to404hanga/pkg404/logger"
 	loggerv2 "github.com/to404hanga/pkg404/logger/v2"
@@ -66,6 +67,7 @@ func (s *CompetitionServiceImpl) CreateCompetition(ctx context.Context, param *m
 		Name:      param.Name,
 		StartTime: param.StartTime,
 		EndTime:   param.EndTime,
+		Status:    pointer.ToPtr(ojmodel.CompetitionStatusUnpublished),
 		CreatorID: param.Operator,
 		UpdaterID: param.Operator,
 	}
@@ -78,9 +80,24 @@ func (s *CompetitionServiceImpl) CreateCompetition(ctx context.Context, param *m
 	if len(param.Problems) != 0 {
 		competitionProblems := make([]ojmodel.CompetitionProblem, 0, len(param.Problems))
 		for _, problem := range param.Problems {
+			problemTitle := ""
+			err = tx.Model(&ojmodel.Problem{}).
+				Where("id = ?", problem).
+				Select("title").
+				Scan(&problemTitle).Error
+			if err != nil {
+				tx.Rollback()
+				return fmt.Errorf("CreateCompetition transaction failed at query problem title: %w", err)
+			}
+			if problemTitle == "" {
+				tx.Rollback()
+				return fmt.Errorf("CreateCompetition transaction failed: problem %d not found", problem)
+			}
 			competitionProblems = append(competitionProblems, ojmodel.CompetitionProblem{
 				CompetitionID: competition.ID,
 				ProblemID:     problem,
+				ProblemTitle:  problemTitle,
+				Status:        pointer.ToPtr(ojmodel.CompetitionProblemStatusEnabled),
 			})
 		}
 		err = tx.Create(&competitionProblems).Error
@@ -136,9 +153,23 @@ func (s *CompetitionServiceImpl) UpdateCompetition(ctx context.Context, param *m
 func (s *CompetitionServiceImpl) AddCompetitionProblem(ctx context.Context, param *model.CompetitionProblemParam) error {
 	competitionProblems := make([]ojmodel.CompetitionProblem, 0, len(param.ProblemIDs))
 	for _, problemID := range param.ProblemIDs {
+		problemTitle := ""
+		err := s.db.WithContext(ctx).
+			Model(&ojmodel.Problem{}).
+			Where("id = ?", problemID).
+			Select("title").
+			Scan(&problemTitle).Error
+		if err != nil {
+			return fmt.Errorf("AddCompetitionProblem failed at query problem title: %w", err)
+		}
+		if problemTitle == "" {
+			return fmt.Errorf("AddCompetitionProblem failed: problem %d not found", problemID)
+		}
 		competitionProblems = append(competitionProblems, ojmodel.CompetitionProblem{
 			CompetitionID: param.CompetitionID,
 			ProblemID:     problemID,
+			ProblemTitle:  problemTitle,
+			Status:        pointer.ToPtr(ojmodel.CompetitionProblemStatusEnabled),
 		})
 	}
 	err := s.db.WithContext(ctx).Create(&competitionProblems).Error
