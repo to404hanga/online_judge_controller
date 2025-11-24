@@ -100,7 +100,8 @@ func (s *ProblemServiceImpl) UpdateProblem(ctx context.Context, param *model.Upd
 		}
 		// 异步删除 redis 缓存, 带重试
 		retry.Do(ctx, func() error {
-			return s.rdb.Del(ctx, fmt.Sprintf(problemKey, param.ProblemID)).Err()
+			// 使用 Unlink 命令删除缓存, 可以异步执行, 不阻塞主流程
+			return s.rdb.Unlink(ctx, fmt.Sprintf(problemKey, param.ProblemID)).Err()
 		}, retry.WithAsync(true), retry.WithCallback(func(err error) {
 			s.log.ErrorContext(ctx, "UpdateProblem: failed to delete cache", logger.Error(err))
 		}))
