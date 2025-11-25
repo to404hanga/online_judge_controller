@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -197,11 +198,11 @@ func (s *ProblemServiceImpl) GetProblemByID(ctx context.Context, problemID, comp
 	}
 
 	err = query.First(&problem).Error
-	if err != nil {
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, fmt.Errorf("GetProblemByID failed: %w", err)
 	}
 
-	// 存入 redis
+	// 存入 redis, 找不到数据存入一份空数据, 防止缓存击穿
 	problemBytes, err = json.Marshal(problem)
 	if err != nil {
 		s.log.ErrorContext(ctx, "GetProblemByID: failed to marshal problem", logger.Error(err))

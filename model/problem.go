@@ -81,5 +81,5 @@ type GetProblemParam struct {
 }
 
 type GetProblemResponse struct {
-	Model *ojmodel.Problem `json:",inline"`
+	*ojmodel.Problem `json:",inline"`
 }

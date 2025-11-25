@@ -354,6 +354,6 @@ func (h *ProblemHandler) GetProblem(c *gin.Context, param *model.GetProblemParam
 	}
 
 	gintool.GinResponse(c, &gintool.Response{Code: http.StatusOK, Data: model.GetProblemResponse{
-		Model: problem,
+		Problem: problem,
 	}})
 }
