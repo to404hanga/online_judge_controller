@@ -207,7 +207,7 @@ func (s *CompetitionServiceImpl) RemoveCompetitionProblem(ctx context.Context, p
 
 // EnableCompetitionProblem 启用比赛题目
 func (s *CompetitionServiceImpl) EnableCompetitionProblem(ctx context.Context, param *model.CompetitionProblemParam) error {
-	err := s.db.WithContext(ctx).
+	err := s.db.WithContext(ctx).Model(&ojmodel.CompetitionProblem{}).
 		Where("competition_id = ?", param.CompetitionID).
 		Where("problem_id IN ?", param.ProblemIDs).
 		Updates(map[string]any{
@@ -221,7 +221,7 @@ func (s *CompetitionServiceImpl) EnableCompetitionProblem(ctx context.Context, p
 
 // DisableCompetitionProblem 禁用比赛题目
 func (s *CompetitionServiceImpl) DisableCompetitionProblem(ctx context.Context, param *model.CompetitionProblemParam) error {
-	err := s.db.WithContext(ctx).
+	err := s.db.WithContext(ctx).Model(&ojmodel.CompetitionProblem{}).
 		Where("competition_id = ?", param.CompetitionID).
 		Where("problem_id IN ?", param.ProblemIDs).
 		Updates(map[string]any{
