@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -35,6 +36,8 @@ type CompetitionService interface {
 	CheckUserInCompetition(ctx context.Context, competitionID, userID uint64) (bool, error)
 	// CheckCompetitionTime 检查比赛时间是否在范围内
 	CheckCompetitionTime(ctx context.Context, competitionID uint64) (bool, error)
+	// GetCompetition 获取比赛信息
+	GetCompetition(ctx context.Context, competitionID uint64) (*ojmodel.Competition, error)
 }
 
 const (
@@ -147,6 +150,16 @@ func (s *CompetitionServiceImpl) UpdateCompetition(ctx context.Context, param *m
 	if err != nil {
 		return fmt.Errorf("UpdateCompetition failed at update competition: %w", err)
 	}
+
+	key := fmt.Sprintf(competitionMetaKey, param.ID)
+	retryCtx := context.WithValue(context.Background(), loggerv2.FieldsKey, ctx.Value(loggerv2.FieldsKey))
+	retry.Do(retryCtx, func() error {
+		return s.rdb.Del(retryCtx, key).Err()
+	}, retry.WithAsync(true), retry.WithCallback(func(err error) {
+		if err != nil {
+			s.log.ErrorContext(retryCtx, "UpdateCompetition failed at delete competition meta cache", logger.Error(err))
+		}
+	}))
 	return nil
 }
 
@@ -427,4 +440,66 @@ func (s *CompetitionServiceImpl) CheckCompetitionTime(ctx context.Context, compe
 	}
 
 	return !time.Now().Before(competition.StartTime) && time.Now().Before(competition.EndTime), nil
+}
+
+// GetCompetition 获取比赛元数据
+func (s *CompetitionServiceImpl) GetCompetition(ctx context.Context, competitionID uint64) (*ojmodel.Competition, error) {
+	var competition ojmodel.Competition
+	metaKey := fmt.Sprintf(competitionMetaKey, competitionID)
+
+	// 1. 优先从 Redis 获取比赛元数据
+	metaBytes, err := s.rdb.Get(ctx, metaKey).Bytes()
+	if err == nil {
+		if err = json.Unmarshal(metaBytes, &competition); err == nil {
+			return &competition, nil
+		}
+		s.log.WarnContext(ctx, "GetCompetition: failed to unmarshal competition meta from redis", logger.Error(err))
+	}
+
+	// 2. 缓存未命中，使用分布式锁进行数据库回源
+	lockKey := fmt.Sprintf("lock:competition:%d:meta:load", competitionID)
+	ok, err := s.rdb.SetNX(ctx, lockKey, "locked", 10*time.Second).Result()
+	if err != nil {
+		return nil, fmt.Errorf("GetCompetition: failed to set lock: %w", err)
+	}
+
+	if !ok {
+		// 未获取到锁，休眠后重试
+		time.Sleep(1 * time.Second)
+		return s.GetCompetition(ctx, competitionID)
+	}
+	defer func() {
+		retryCtx := context.WithValue(context.Background(), loggerv2.FieldsKey, ctx.Value(loggerv2.FieldsKey))
+		retry.Do(retryCtx, func() error {
+			return s.rdb.Del(retryCtx, lockKey).Err()
+		}, retry.WithAsync(true), retry.WithCallback(func(err error) {
+			s.log.ErrorContext(retryCtx, "GetCompetition: failed to delete lock", logger.Error(err))
+		}))
+	}()
+
+	// 3. 获取锁后，再次检查缓存
+	metaBytes, err = s.rdb.Get(ctx, metaKey).Bytes()
+	if err == nil {
+		if err = json.Unmarshal(metaBytes, &competition); err == nil {
+			return &competition, nil
+		}
+	}
+
+	// 4. 从数据库加载比赛元数据
+	err = s.db.WithContext(ctx).
+		Where("id = ?", competitionID).
+		First(&competition).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, fmt.Errorf("GetCompetition: failed to select from competition: %w", err)
+	}
+
+	// 5. 将元数据写入 Redis 缓存
+	metaBytes, err = json.Marshal(competition)
+	if err == nil {
+		s.rdb.Set(ctx, metaKey, metaBytes, 8*time.Hour)
+	} else {
+		s.log.ErrorContext(ctx, "GetCompetition: failed to marshal competition meta", logger.Error(err))
+	}
+
+	return &competition, nil
 }

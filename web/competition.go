@@ -3,6 +3,7 @@ package web
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	ojmodel "github.com/to404hanga/online_judge_common/model"
@@ -81,18 +82,43 @@ func (h *CompetitionHandler) UpdateCompetition(c *gin.Context, param *model.Upda
 	ctx := loggerv2.ContextWithFields(c.Request.Context(),
 		logger.Uint64("competition_id", param.ID))
 
-	if param.StartTime != nil && param.EndTime != nil {
-		if !param.EndTime.After(*param.StartTime) {
-			gintool.GinResponse(c, &gintool.Response{
-				Code:    http.StatusBadRequest,
-				Message: "EndTime must be after StartTime",
-			})
-			h.log.ErrorContext(ctx, "UpdateCompetition EndTime must be after StartTime",
-				logger.String("start_time", param.StartTime.GoString()),
-				logger.String("end_time", param.EndTime.GoString()))
-			return
-		}
+	competition, err := h.competitionSvc.GetCompetition(ctx, param.ID)
+	if err != nil {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusInternalServerError,
+			Message: fmt.Sprintf("UpdateCompetition failed: %s", err.Error()),
+		})
+		h.log.ErrorContext(ctx, "UpdateCompetition failed", logger.Error(err))
+		return
 	}
+	if competition == nil || competition.ID == 0 {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusNotFound,
+			Message: fmt.Sprintf("Competition %d not found", param.ID),
+		})
+		h.log.ErrorContext(ctx, "UpdateCompetition Competition not found",
+			logger.Uint64("competition_id", param.ID))
+		return
+	}
+
+	newStartTime, newEndTime := competition.StartTime, competition.EndTime
+	if param.StartTime != nil {
+		newStartTime = *param.StartTime
+	}
+	if param.EndTime != nil {
+		newEndTime = *param.EndTime
+	}
+	if !newEndTime.After(newStartTime) {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusBadRequest,
+			Message: "EndTime must be after StartTime",
+		})
+		h.log.ErrorContext(ctx, "UpdateCompetition EndTime must be after StartTime",
+			logger.String("start_time", newStartTime.Format(time.RFC3339)),
+			logger.String("end_time", newEndTime.Format(time.RFC3339)))
+		return
+	}
+
 	if param.Status != nil {
 		if *param.Status != int8(ojmodel.CompetitionStatusUnpublished) &&
 			*param.Status != int8(ojmodel.CompetitionStatusPublished) &&
@@ -107,7 +133,7 @@ func (h *CompetitionHandler) UpdateCompetition(c *gin.Context, param *model.Upda
 		}
 	}
 
-	err := h.competitionSvc.UpdateCompetition(ctx, param)
+	err = h.competitionSvc.UpdateCompetition(ctx, param)
 	if err != nil {
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,
