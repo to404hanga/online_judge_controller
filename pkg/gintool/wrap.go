@@ -74,16 +74,18 @@ func WrapHandler[T model.CommonParamInterface](h func(c *gin.Context, pType T), 
 		// 	log.ErrorContext(c.Request.Context(), "WrapHandler bind json failed", logger.Error(err))
 		// 	return
 		// }
-		jsonBytes, _ := c.GetRawData()
-		if len(jsonBytes) > 0 {
-			err = json.Unmarshal(jsonBytes, param)
-			if err != nil {
-				GinResponse(c, &Response{
-					Code:    http.StatusBadRequest,
-					Message: err.Error(),
-				})
-				log.ErrorContext(c.Request.Context(), "WrapHandler bind json failed", logger.Error(err))
-				return
+		if c.ContentType() == binding.MIMEJSON {
+			jsonBytes, _ := c.GetRawData()
+			if len(jsonBytes) > 0 {
+				err = json.Unmarshal(jsonBytes, param)
+				if err != nil {
+					GinResponse(c, &Response{
+						Code:    http.StatusBadRequest,
+						Message: err.Error(),
+					})
+					log.ErrorContext(c.Request.Context(), "WrapHandler bind json failed", logger.Error(err))
+					return
+				}
 			}
 		}
 
@@ -190,16 +192,18 @@ func WrapCompetitionHandler[T model.CompetitionCommonParamInterface](h func(c *g
 		// 	log.ErrorContext(c.Request.Context(), "WrapCompetitionHandler bind json failed", logger.Error(err))
 		// 	return
 		// }
-		jsonBytes, _ := c.GetRawData()
-		if len(jsonBytes) > 0 {
-			err = json.Unmarshal(jsonBytes, param)
-			if err != nil {
-				GinResponse(c, &Response{
-					Code:    http.StatusBadRequest,
-					Message: err.Error(),
-				})
-				log.ErrorContext(c.Request.Context(), "WrapHandler bind json failed", logger.Error(err))
-				return
+		if c.ContentType() == binding.MIMEJSON {
+			jsonBytes, _ := c.GetRawData()
+			if len(jsonBytes) > 0 {
+				err = json.Unmarshal(jsonBytes, param)
+				if err != nil {
+					GinResponse(c, &Response{
+						Code:    http.StatusBadRequest,
+						Message: err.Error(),
+					})
+					log.ErrorContext(c.Request.Context(), "WrapCompetitionHandler bind json failed", logger.Error(err))
+					return
+				}
 			}
 		}
 

@@ -23,7 +23,7 @@ func BuildDependency() *web.GinServer {
 		event.NewSaramaProducer,
 
 		service.NewCompetitionService,
-		// service.NewUserService,
+		service.NewUserService,
 		service.NewProblemService,
 		service.NewSubmissionService,
 		ioc.InitRankingService,
@@ -34,6 +34,7 @@ func BuildDependency() *web.GinServer {
 		web.NewProblemHandler,
 		// commonioc.InitSubmissionHandler,
 		web.NewSubmissionHandler,
+		web.NewUserHandler,
 
 		ioc.InitGinServer,
 	)

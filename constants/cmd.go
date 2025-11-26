@@ -33,3 +33,10 @@ const (
 	GetSubmissionDownloadPresignedURLPath = "/GetSubmissionDownloadPresignedURL" // 获取提交下载预签名 URL
 	GetLatestSubmissionPath               = "/GetLatestSubmission"               // 获取最新提交
 )
+
+const (
+	GetUserListPath               = "/GetUserList"               // 获取用户列表
+	AddUsersToCompetitionPath     = "/AddUsersToCompetition"     // 添加用户到比赛名单
+	EnableUsersInCompetitionPath  = "/EnableUsersInCompetition"  // 允许用户参加比赛
+	DisableUsersInCompetitionPath = "/DisableUsersInCompetition" // 禁用用户参加比赛
+)

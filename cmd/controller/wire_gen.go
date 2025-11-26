@@ -36,6 +36,8 @@ func BuildDependency() *web.GinServer {
 	submissionService := service.NewSubmissionService(db, cmdable, producer, logger)
 	submissionHandler := web.NewSubmissionHandler(submissionService, competitionService, logger)
 	healthHandler := web.NewHealthHandler(logger)
-	ginServer := ioc2.InitGinServer(logger, handler, db, competitionHandler, problemHandler, submissionHandler, healthHandler)
+	userService := service.NewUserService(db, logger)
+	userHandler := web.NewUserHandler(logger, userService)
+	ginServer := ioc2.InitGinServer(logger, handler, db, competitionHandler, problemHandler, submissionHandler, healthHandler, userHandler)
 	return ginServer
 }
