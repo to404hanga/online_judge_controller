@@ -188,7 +188,7 @@ func (h *UserHandler) AddUsersToCompetition(c *gin.Context, param *model.AddUser
 	if len(param.UserIDList) == 0 && c.ContentType() == binding.MIMEMultipartPOSTForm {
 		// 如果前端没有传入 UserIDList, 则证明是从文件上传的用户
 		userMap = h.getUserMapFromFile(c)
-	} else {
+	} else if len(param.UserIDList) > 0 {
 		// 如果前端传入了 UserIDList, 则证明是从界面勾选的用户
 		userMap = h.getUserMapFromUserIDList(c, param.UserIDList)
 	}
