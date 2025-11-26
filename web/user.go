@@ -144,14 +144,6 @@ func (h *UserHandler) getUserMapFromFile(c *gin.Context) map[uint64]*ojmodel.Use
 		h.log.ErrorContext(ctx, "AddUsersToCompetition get user list failed", logger.Error(err))
 		return nil
 	}
-	if len(userList) == 0 {
-		gintool.GinResponse(c, &gintool.Response{
-			Code:    http.StatusBadRequest,
-			Message: "no user found",
-		})
-		h.log.ErrorContext(ctx, "AddUsersToCompetition no user found", logger.Error(err))
-		return nil
-	}
 
 	return transform.MapFromSlice(userList, func(i int, user ojmodel.User) (uint64, *ojmodel.User) {
 		return user.ID, &user
@@ -166,14 +158,6 @@ func (h *UserHandler) getUserMapFromUserIDList(ctx *gin.Context, userIDList []ui
 			Message: err.Error(),
 		})
 		h.log.ErrorContext(ctx, "AddUsersToCompetition get user list failed", logger.Error(err))
-		return nil
-	}
-	if len(userList) == 0 {
-		gintool.GinResponse(ctx, &gintool.Response{
-			Code:    http.StatusBadRequest,
-			Message: "no user found",
-		})
-		h.log.ErrorContext(ctx, "AddUsersToCompetition no user found", logger.Error(err))
 		return nil
 	}
 	return transform.MapFromSlice(userList, func(i int, user ojmodel.User) (uint64, *ojmodel.User) {
