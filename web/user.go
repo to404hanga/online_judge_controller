@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	ojmodel "github.com/to404hanga/online_judge_common/model"
 	"github.com/to404hanga/online_judge_controller/constants"
 	"github.com/to404hanga/online_judge_controller/model"
@@ -184,7 +185,7 @@ func (h *UserHandler) AddUsersToCompetition(c *gin.Context, param *model.AddUser
 	ctx := c.Request.Context()
 
 	var userMap map[uint64]*ojmodel.User
-	if len(param.UserIDList) == 0 {
+	if len(param.UserIDList) == 0 && c.ContentType() == binding.MIMEMultipartPOSTForm {
 		// 如果前端没有传入 UserIDList, 则证明是从文件上传的用户
 		userMap = h.getUserMapFromFile(c)
 	} else {
