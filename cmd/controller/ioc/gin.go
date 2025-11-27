@@ -69,7 +69,7 @@ func InitGinServer(etcdCli *clientv3.Client, l loggerv2.Logger, jwtHandler jwt.H
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	resp, err := etcdCli.Grant(ctx, int64(5*time.Second))
+	resp, err := etcdCli.Grant(ctx, 5)
 	if err != nil {
 		log.Panicf("创建 lease 失败: %v", err)
 	}
@@ -83,8 +83,7 @@ func InitGinServer(etcdCli *clientv3.Client, l loggerv2.Logger, jwtHandler jwt.H
 
 	// 设置 KeepAlive
 	// KeepAlive 需要一个长生命周期的 context，不能用上面的 timeout context
-	keepAliveCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	keepAliveCtx, _ := context.WithCancel(context.Background())
 	keepAliveChan, err := etcdCli.KeepAlive(keepAliveCtx, leaseID)
 	if err != nil {
 		log.Panicf("设置 keepalive 失败: %v", err)
