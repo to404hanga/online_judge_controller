@@ -18,6 +18,8 @@ log:
   autoCreateFile: true
 
 gin:
+  serviceName: "online_judge_controller"
+  weight: 1
   allowOrigins:
     - "*"
   allowMethods:
@@ -63,20 +65,10 @@ jwt:
   jwtKey: "a7f3e9d2c8b4f1a6e5d8c3b7f2a9e6d1c4b8f5a2e7d3c9b6f1a4e8d2c5b9f3a6" # 64 位随机字符串
   refreshKey: "e1d4c7b2f8a5e9d3c6b1f4a7e2d5c8b3f6a9e4d7c1b5f2a8e6d9c3b7f1a4e8d2" # 64 位随机字符串
 
-minio:
-  endpoint: "localhost:9000"
-  useSSL: false
-  configs:
-    problem:
-      problemBucket: "problem"
-      testcaseBucket: "testcase"
-      uploadDurationSeconds: 600
-      downloadDurationSeconds: 21600 # 6 小时
-    submission:
-      bucket: "submission"
-      uploadDurationSeconds: 60
-      downloadDurationSeconds: 60
-
 kafka:
   brokers:
     - "localhost:9092"
+    
+etcd:
+  endpoints:
+    - "localhost:2379"

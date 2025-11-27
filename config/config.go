@@ -16,6 +16,8 @@ func (LoggerConfig) Key() string {
 }
 
 type GinConfig struct {
+	ServiceName          string   `yaml:"serviceName"`          // 服务名称
+	Weight               int      `yaml:"weight"`               // 服务权重
 	AllowOrigins         []string `yaml:"allowOrigins"`         // 允许的来源，* 表示所有来源
 	AllowMethods         []string `yaml:"allowMethods"`         // 允许的方法，* 表示所有方法
 	AllowHeaders         []string `yaml:"allowHeaders"`         // 允许的请求头，* 表示所有请求头

@@ -19,6 +19,7 @@ func BuildDependency() *web.GinServer {
 		commonioc.InitRedis,
 		commonioc.InitKafka,
 		commonioc.InitSyncProducer,
+		commonioc.InitEtcdClient,
 
 		event.NewSaramaProducer,
 

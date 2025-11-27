@@ -21,6 +21,7 @@ import (
 // Injectors from wire.go:
 
 func BuildDependency() *web.GinServer {
+	client := ioc.InitEtcdClient()
 	logger := ioc.InitLogger()
 	cmdable := ioc.InitRedis()
 	handler := ioc.InitJWTHandler(cmdable)
@@ -30,14 +31,14 @@ func BuildDependency() *web.GinServer {
 	competitionHandler := web.NewCompetitionHandler(competitionService, rankingService, handler, logger)
 	problemService := service.NewProblemService(db, cmdable, logger)
 	problemHandler := web.NewProblemHandler(problemService, logger)
-	client := ioc.InitKafka()
-	syncProducer := ioc.InitSyncProducer(client)
+	saramaClient := ioc.InitKafka()
+	syncProducer := ioc.InitSyncProducer(saramaClient)
 	producer := event.NewSaramaProducer(syncProducer)
 	submissionService := service.NewSubmissionService(db, cmdable, producer, logger)
 	submissionHandler := web.NewSubmissionHandler(submissionService, competitionService, logger)
 	healthHandler := web.NewHealthHandler(logger)
 	userService := service.NewUserService(db, logger)
 	userHandler := web.NewUserHandler(logger, userService)
-	ginServer := ioc2.InitGinServer(logger, handler, db, competitionHandler, problemHandler, submissionHandler, healthHandler, userHandler)
+	ginServer := ioc2.InitGinServer(client, logger, handler, db, competitionHandler, problemHandler, submissionHandler, healthHandler, userHandler)
 	return ginServer
 }
