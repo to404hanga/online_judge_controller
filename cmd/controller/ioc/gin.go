@@ -44,7 +44,7 @@ func InitGinServer(etcdCli *clientv3.Client, l loggerv2.Logger, jwtHandler jwt.H
 	var ip string
 	// 判断是否为 Docker 环境
 	if containerEnv := os.Getenv("SERVER_CONTAINER"); containerEnv != "" {
-		ip = containerEnv
+		ip = cfg.ServiceName
 	} else {
 		ip, err = getLocalIP()
 		if err != nil {
