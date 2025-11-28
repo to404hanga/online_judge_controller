@@ -22,8 +22,6 @@ type ProblemService interface {
 	CreateProblem(ctx context.Context, param *model.CreateProblemParam) error
 	// UpdateProblem 更新题目
 	UpdateProblem(ctx context.Context, param *model.UpdateProblemParam) error
-	// // CheckExistByTestcaseZipURL 检查测试用例压缩包 URL 是否存在
-	// CheckExistByTestcaseZipURL(ctx context.Context, testcaseZipURL string) (bool, error)
 	// GetProblemByID 获取题目
 	GetProblemByID(ctx context.Context, problemID, competitionID uint64) (*ojmodel.Problem, error)
 	// GetProblemList 获取题目列表
@@ -114,18 +112,6 @@ func (s *ProblemServiceImpl) UpdateProblem(ctx context.Context, param *model.Upd
 
 	return nil
 }
-
-// // CheckExistByTestcaseZipURL 检查测试用例压缩包 URL 是否存在
-// func (s *ProblemServiceImpl) CheckExistByTestcaseZipURL(ctx context.Context, testcaseZipURL string) (bool, error) {
-// 	var count int64
-// 	err := s.db.WithContext(ctx).Model(&ojmodel.Problem{}).
-// 		Where("testcase_zip_url = ?", testcaseZipURL).
-// 		Count(&count).Error
-// 	if err != nil {
-// 		return false, fmt.Errorf("CheckExistByTestcaseZipURL failed: %w", err)
-// 	}
-// 	return count > 0, nil
-// }
 
 // GetProblemByID 获取题目
 func (s *ProblemServiceImpl) GetProblemByID(ctx context.Context, problemID, competitionID uint64) (*ojmodel.Problem, error) {

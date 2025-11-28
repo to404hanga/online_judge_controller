@@ -43,8 +43,6 @@ func NewProblemHandler(problemSvc service.ProblemService, log loggerv2.Logger) *
 func (h *ProblemHandler) Register(r *gin.Engine) {
 	r.POST(constants.CreateProblemPath, gintool.WrapHandler(h.CreateProblem, h.log))
 	r.PUT(constants.UpdateProblemPath, gintool.WrapHandler(h.UpdateProblem, h.log))
-	// r.GET(constants.GetProblemTestcaseUploadPresignedURLPath, gintool.WrapHandler(h.GetProblemTestcaseUploadPresignedURL, h.log))
-	// r.GET(constants.GetProblemTestcaseDownloadPresignedURLPath, gintool.WrapHandler(h.GetProblemTestcaseDownloadPresignedURL, h.log))
 	r.GET(constants.GetProblemListPath, gintool.WrapHandler(h.GetProblemList, h.log))
 	r.POST(constants.UploadProblemTestcasePath, gintool.WrapWithoutBodyHandler(h.UploadProblemTestcase, h.log))
 	r.GET(constants.GetProblemPath, gintool.WrapHandler(h.GetProblem, h.log))
@@ -119,60 +117,6 @@ func (h *ProblemHandler) UpdateProblem(c *gin.Context, param *model.UpdateProble
 		Message: "success",
 	})
 }
-
-// func (h *ProblemHandler) GetProblemTestcaseUploadPresignedURL(c *gin.Context, param *model.GetProblemTestcaseUploadPresignedURLParam) {
-// 	ctx := loggerv2.ContextWithFields(c.Request.Context(), logger.String("hash", param.Hash))
-
-// 	presignedURL, err := h.minioSvc.GetPresignedUploadURL(ctx, h.testcaseBucket, param.Hash, h.uploadDurationSeconds)
-// 	if err != nil {
-// 		gintool.GinResponse(c, &gintool.Response{
-// 			Code:    http.StatusInternalServerError,
-// 			Message: err.Error(),
-// 		})
-// 		h.log.ErrorContext(ctx, "GetProblemTestcaseUploadPresignedURL failed", logger.Error(err))
-// 		return
-// 	}
-
-// 	gintool.GinResponse(c, &gintool.Response{
-// 		Code:    http.StatusOK,
-// 		Message: "success",
-// 		Data: &model.GetProblemTestcaseUploadPresignedURLResponse{
-// 			PresignedURL: presignedURL,
-// 		},
-// 	})
-// }
-
-// func (h *ProblemHandler) GetProblemTestcaseDownloadPresignedURL(c *gin.Context, param *model.GetProblemTestcaseDownloadPresignedURLParam) {
-// 	ctx := loggerv2.ContextWithFields(c.Request.Context(), logger.Uint64("problem_id", param.ProblemID))
-
-// 	problem, err := h.problemSvc.GetProblemByID(ctx, param.ProblemID)
-// 	if err != nil {
-// 		gintool.GinResponse(c, &gintool.Response{
-// 			Code:    http.StatusInternalServerError,
-// 			Message: err.Error(),
-// 		})
-// 		h.log.ErrorContext(ctx, "GetProblemTestcaseDownloadPresignedURL failed", logger.Error(err))
-// 		return
-// 	}
-
-// 	presignedURL, err := h.minioSvc.GetPresignedDownloadURL(ctx, h.testcaseBucket, problem.TestcaseZipURL, h.downloadDurationSeconds)
-// 	if err != nil {
-// 		gintool.GinResponse(c, &gintool.Response{
-// 			Code:    http.StatusInternalServerError,
-// 			Message: err.Error(),
-// 		})
-// 		h.log.ErrorContext(ctx, "GetProblemTestcaseDownloadPresignedURL failed", logger.Error(err))
-// 		return
-// 	}
-
-// 	gintool.GinResponse(c, &gintool.Response{
-// 		Code:    http.StatusOK,
-// 		Message: "success",
-// 		Data: &model.GetProblemTestcaseDownloadPresignedURLResponse{
-// 			PresignedURL: presignedURL,
-// 		},
-// 	})
-// }
 
 func (h *ProblemHandler) GetProblemList(c *gin.Context, param *model.GetProblemListParam) {
 	fields := []logger.Field{
