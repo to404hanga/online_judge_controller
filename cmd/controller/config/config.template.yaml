@@ -18,8 +18,6 @@ log:
   autoCreateFile: true
 
 gin:
-  serviceName: "online_judge_controller"
-  weight: 1
   allowOrigins:
     - "*"
   allowMethods:
@@ -68,7 +66,3 @@ jwt:
 kafka:
   brokers:
     - "localhost:9092"
-    
-etcd:
-  endpoints:
-    - "localhost:2379"

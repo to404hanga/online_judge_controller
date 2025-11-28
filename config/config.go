@@ -16,8 +16,6 @@ func (LoggerConfig) Key() string {
 }
 
 type GinConfig struct {
-	ServiceName          string   `yaml:"serviceName"`          // 服务名称
-	Weight               int      `yaml:"weight"`               // 服务权重
 	AllowOrigins         []string `yaml:"allowOrigins"`         // 允许的来源，* 表示所有来源
 	AllowMethods         []string `yaml:"allowMethods"`         // 允许的方法，* 表示所有方法
 	AllowHeaders         []string `yaml:"allowHeaders"`         // 允许的请求头，* 表示所有请求头
@@ -70,36 +68,6 @@ type JWTConfig struct {
 
 func (JWTConfig) Key() string {
 	return "jwt"
-}
-
-type MinIOConfig struct {
-	Endpoint string `yaml:"endpoint"` // MinIO服务端点
-	UseSSL   bool   `yaml:"useSSL"`   // 是否使用SSL
-}
-
-func (MinIOConfig) Key() string {
-	return "minio"
-}
-
-// type ProblemMinIOConfig struct {
-// 	ProblemBucket           string `yaml:"problemBucket"`
-// 	TestcaseBucket          string `yaml:"testcaseBucket"`
-// 	UploadDurationSeconds   int    `yaml:"uploadDurationSeconds"`
-// 	DownloadDurationSeconds int    `yaml:"downloadDurationSeconds"`
-// }
-
-// func (ProblemMinIOConfig) Key() string {
-// 	return "minio.configs.problem"
-// }
-
-type SubmissionMinIOConfig struct {
-	Bucket                  string `yaml:"bucket"`
-	UploadDurationSeconds   int    `yaml:"uploadDurationSeconds"`
-	DownloadDurationSeconds int    `yaml:"downloadDurationSeconds"`
-}
-
-func (SubmissionMinIOConfig) Key() string {
-	return "minio.configs.submission"
 }
 
 type KafkaConfig struct {

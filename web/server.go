@@ -1,16 +1,14 @@
 package web
 
 import (
-	"net"
-
 	"github.com/gin-gonic/gin"
 )
 
 type GinServer struct {
-	Engine   *gin.Engine
-	Listener net.Listener
+	Engine *gin.Engine
+	Addr   string
 }
 
 func (s *GinServer) Start() error {
-	return s.Engine.RunListener(s.Listener)
+	return s.Engine.Run(s.Addr)
 }
