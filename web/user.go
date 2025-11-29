@@ -189,7 +189,7 @@ func (h *UserHandler) AddUsersToCompetition(c *gin.Context, param *model.AddUser
 	if err != nil {
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,
-			Message: "internal error",
+			Message: err.Error(),
 		})
 		h.log.ErrorContext(ctx, "AddUsersToCompetition failed", logger.Error(err))
 		return
