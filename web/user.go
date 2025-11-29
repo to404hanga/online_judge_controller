@@ -144,6 +144,15 @@ func (h *UserHandler) getUserMapFromFile(c *gin.Context) map[uint64]*ojmodel.Use
 		h.log.ErrorContext(ctx, "AddUsersToCompetition get user list failed", logger.Error(err))
 		return nil
 	}
+	if len(userList) == 0 {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusBadRequest,
+			Message: "no user found",
+		})
+		h.log.ErrorContext(ctx, "AddUsersToCompetition no user found",
+			logger.Slice("username_list", usernameList))
+		return nil
+	}
 
 	return transform.MapFromSlice(userList, func(i int, user ojmodel.User) (uint64, *ojmodel.User) {
 		return user.ID, &user
@@ -175,13 +184,16 @@ func (h *UserHandler) AddUsersToCompetition(c *gin.Context, param *model.AddUser
 	} else if len(param.UserIDList) > 0 {
 		// 如果前端传入了 UserIDList, 则证明是从界面勾选的用户
 		userMap = h.getUserMapFromUserIDList(c, param.UserIDList)
-	}
-	if len(userMap) == 0 {
+	} else {
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusBadRequest,
-			Message: "no user found",
+			Message: "unsupported content type",
 		})
-		h.log.ErrorContext(ctx, "AddUsersToCompetition no user found")
+		h.log.ErrorContext(ctx, "AddUsersToCompetition unsupported content type")
+		return
+	}
+	if len(userMap) == 0 {
+		h.log.InfoContext(ctx, "user len is 0")
 		return
 	}
 
