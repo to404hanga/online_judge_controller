@@ -55,6 +55,7 @@ func (s *SubmissionServiceImpl) SubmitCompetitionProblem(ctx context.Context, pa
 		UserID:        param.Operator,
 		Code:          param.Code,
 		Language:      pointer.ToPtr(ojmodel.SubmissionLanguage(param.Language)),
+		Status:        pointer.ToPtr(ojmodel.SubmissionStatusPending),
 		CreatedAt:     time.Now(), // 立即生成提交时间
 	}
 
@@ -88,7 +89,7 @@ func (s *SubmissionServiceImpl) GetLatestSubmission(ctx context.Context, competi
 		Where("problem_id = ?", problemID).
 		Order("created_at desc").
 		First(&submission).Error
-	if err != nil {
+	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, fmt.Errorf("GetLatestSubmission failed at find submission: %w", err)
 	}
 	return &submission, nil

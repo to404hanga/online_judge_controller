@@ -73,7 +73,7 @@ func (h *SubmissionHandler) SubmitCompetitionProblem(c *gin.Context, param *mode
 		return
 	}
 	// 如果最近的一次提交还没判题完毕, 禁止提交
-	if latestSubmission != nil && *latestSubmission.Status != ojmodel.SubmissionStatusJudged {
+	if latestSubmission != nil && latestSubmission.ID != 0 && *latestSubmission.Status != ojmodel.SubmissionStatusJudged {
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusForbidden,
 			Message: "You have submitted this problem, please wait for the result",

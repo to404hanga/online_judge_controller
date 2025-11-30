@@ -65,15 +65,6 @@ func WrapHandler[T model.CommonParamInterface](h func(c *gin.Context, pType T), 
 		}
 
 		// 4) JSON
-		// err = binding.JSON.Bind(c.Request, param)
-		// if err != nil {
-		// 	GinResponse(c, &Response{
-		// 		Code:    http.StatusBadRequest,
-		// 		Message: err.Error(),
-		// 	})
-		// 	log.ErrorContext(c.Request.Context(), "WrapHandler bind json failed", logger.Error(err))
-		// 	return
-		// }
 		if c.ContentType() == binding.MIMEJSON {
 			jsonBytes, _ := c.GetRawData()
 			if len(jsonBytes) > 0 {
@@ -142,6 +133,12 @@ func WrapWithoutBodyHandler[T model.CommonParamInterface](h func(c *gin.Context,
 func WrapCompetitionHandler[T model.CompetitionCommonParamInterface](h func(c *gin.Context, pType T), log loggerv2.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var param T
+		// 确保指针类型的 T 不为 nil，避免在 ExtractOperator 中调用 SetOperator 时报空指针
+		rv := reflect.ValueOf(param)
+		if rv.IsValid() && rv.Kind() == reflect.Ptr && rv.IsNil() {
+			param = reflect.New(rv.Type().Elem()).Interface().(T)
+		}
+
 		// 1) URI
 		if len(c.Params) > 0 {
 			m := make(map[string][]string, len(c.Params))
@@ -183,15 +180,6 @@ func WrapCompetitionHandler[T model.CompetitionCommonParamInterface](h func(c *g
 		}
 
 		// 4) JSON
-		// err = binding.JSON.Bind(c.Request, &param)
-		// if err != nil {
-		// 	GinResponse(c, &Response{
-		// 		Code:    http.StatusBadRequest,
-		// 		Message: err.Error(),
-		// 	})
-		// 	log.ErrorContext(c.Request.Context(), "WrapCompetitionHandler bind json failed", logger.Error(err))
-		// 	return
-		// }
 		if c.ContentType() == binding.MIMEJSON {
 			jsonBytes, _ := c.GetRawData()
 			if len(jsonBytes) > 0 {
