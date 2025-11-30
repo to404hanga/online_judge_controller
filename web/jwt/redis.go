@@ -58,8 +58,8 @@ func (h *RedisJWTHandler) SetCompetitionToken(ctx *gin.Context, competitionId, u
 }
 
 func (h *RedisJWTHandler) ExtractToken(ctx *gin.Context) string {
-	// 优先从Authorization Header提取token
-	authCode := ctx.GetHeader("Authorization")
+	// 优先从 X-Competition-JWT-Token Header 提取token
+	authCode := ctx.GetHeader(constants.HeaderLoginTokenKey)
 	if authCode != "" {
 		segs := strings.Split(authCode, " ")
 		if len(segs) == 2 && segs[0] == "Bearer" {
