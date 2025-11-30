@@ -2,6 +2,7 @@ package web
 
 import (
 	"bytes"
+	"context"
 	"encoding/csv"
 	"fmt"
 	"net/http"
@@ -20,16 +21,18 @@ import (
 )
 
 type UserHandler struct {
-	log     loggerv2.Logger
-	userSvc service.UserService
+	log            loggerv2.Logger
+	userSvc        service.UserService
+	competitionSvc service.CompetitionService
 }
 
 var _ Handler = (*UserHandler)(nil)
 
-func NewUserHandler(log loggerv2.Logger, userSvc service.UserService) *UserHandler {
+func NewUserHandler(log loggerv2.Logger, userSvc service.UserService, competitionSvc service.CompetitionService) *UserHandler {
 	return &UserHandler{
-		log:     log,
-		userSvc: userSvc,
+		log:            log,
+		userSvc:        userSvc,
+		competitionSvc: competitionSvc,
 	}
 }
 
@@ -175,8 +178,22 @@ func (h *UserHandler) getUserMapFromUserIDList(ctx *gin.Context, userIDList []ui
 	})
 }
 
+func (h *UserHandler) checkCompetitionExist(ctx context.Context, competitionID uint64) bool {
+	competition, err := h.competitionSvc.GetCompetition(ctx, competitionID)
+	return err == nil && competition != nil && competition.ID != 0
+}
+
 func (h *UserHandler) AddUsersToCompetition(c *gin.Context, param *model.AddUsersToCompetition) {
-	ctx := c.Request.Context()
+	ctx := loggerv2.WithFieldsToContext(c.Request.Context(), logger.Uint64("competition_id", param.CompetitionID))
+
+	if !h.checkCompetitionExist(ctx, param.CompetitionID) {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusBadRequest,
+			Message: "competition not found",
+		})
+		h.log.ErrorContext(ctx, "AddUsersToCompetition competition not found")
+		return
+	}
 
 	var userMap map[uint64]*ojmodel.User
 	if len(param.UserIDList) == 0 && c.ContentType() == binding.MIMEMultipartPOSTForm {
@@ -218,7 +235,16 @@ func (h *UserHandler) AddUsersToCompetition(c *gin.Context, param *model.AddUser
 }
 
 func (h *UserHandler) EnableUsersInCompetition(c *gin.Context, param *model.CompetitionUserListParam) {
-	ctx := c.Request.Context()
+	ctx := loggerv2.WithFieldsToContext(c.Request.Context(), logger.Uint64("competition_id", param.CompetitionID))
+
+	if !h.checkCompetitionExist(ctx, param.CompetitionID) {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusBadRequest,
+			Message: "competition not found",
+		})
+		h.log.ErrorContext(ctx, "EnableUsersInCompetition competition not found")
+		return
+	}
 
 	userList, err := h.userSvc.GetUserListByIDList(ctx, param.UserIDList)
 	if err != nil {
@@ -269,7 +295,16 @@ func (h *UserHandler) EnableUsersInCompetition(c *gin.Context, param *model.Comp
 }
 
 func (h *UserHandler) DisableUsersInCompetition(c *gin.Context, param *model.CompetitionUserListParam) {
-	ctx := c.Request.Context()
+	ctx := loggerv2.WithFieldsToContext(c.Request.Context(), logger.Uint64("competition_id", param.CompetitionID))
+
+	if !h.checkCompetitionExist(ctx, param.CompetitionID) {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusBadRequest,
+			Message: "competition not found",
+		})
+		h.log.ErrorContext(ctx, "DisableUsersInCompetition competition not found")
+		return
+	}
 
 	userList, err := h.userSvc.GetUserListByIDList(ctx, param.UserIDList)
 	if err != nil {
