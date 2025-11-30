@@ -2,6 +2,7 @@ package web
 
 import (
 	"archive/zip"
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
@@ -250,6 +251,7 @@ func (h *ProblemHandler) UploadProblemTestcase(c *gin.Context, param *model.Uplo
 			h.log.ErrorContext(ctx, "UploadProblemTestcase open entry failed", logger.Error(err))
 			return
 		}
+		defer rc.Close()
 		destFile, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
 		if err != nil {
 			rc.Close()
@@ -257,15 +259,25 @@ func (h *ProblemHandler) UploadProblemTestcase(c *gin.Context, param *model.Uplo
 			h.log.ErrorContext(ctx, "UploadProblemTestcase open target failed", logger.Error(err), logger.String("target", target))
 			return
 		}
-		if _, err := io.Copy(destFile, rc); err != nil {
-			destFile.Close()
-			rc.Close()
-			gintool.GinResponse(c, &gintool.Response{Code: http.StatusInternalServerError, Message: "failed to write file"})
-			h.log.ErrorContext(ctx, "UploadProblemTestcase copy failed", logger.Error(err))
+		destFile.Close()
+		content, err := io.ReadAll(rc)
+		if err != nil {
+			gintool.GinResponse(c, &gintool.Response{
+				Code:    http.StatusInternalServerError,
+				Message: "failed to read zip entry",
+			})
+			h.log.ErrorContext(ctx, "UploadProblemTestcase read entry failed", logger.Error(err))
 			return
 		}
-		destFile.Close()
-		rc.Close()
+		content = bytes.ReplaceAll(content, []byte("\r\n"), []byte("\n"))
+		if _, err = destFile.Write(content); err != nil {
+			gintool.GinResponse(c, &gintool.Response{
+				Code:    http.StatusInternalServerError,
+				Message: "failed to write file",
+			})
+			h.log.ErrorContext(ctx, "UploadProblemTestcase write target failed", logger.Error(err), logger.String("target", target))
+			return
+		}
 	}
 
 	gintool.GinResponse(c, &gintool.Response{Code: http.StatusOK, Message: "success"})

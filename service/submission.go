@@ -56,7 +56,10 @@ func (s *SubmissionServiceImpl) SubmitCompetitionProblem(ctx context.Context, pa
 		Code:          param.Code,
 		Language:      pointer.ToPtr(ojmodel.SubmissionLanguage(param.Language)),
 		Status:        pointer.ToPtr(ojmodel.SubmissionStatusPending),
-		CreatedAt:     time.Now(), // 立即生成提交时间
+		Result:        pointer.ToPtr(ojmodel.SubmissionResultUnjudged),
+		TimeUsed:      pointer.ToPtr(-1), // -1 表示未判题
+		MemoryUsed:    pointer.ToPtr(-1), // -1 表示未判题
+		CreatedAt:     time.Now(),        // 立即生成提交时间
 	}
 
 	err := s.db.WithContext(ctx).Create(&submission).Error
