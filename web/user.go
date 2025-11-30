@@ -3,6 +3,7 @@ package web
 import (
 	"bytes"
 	"encoding/csv"
+	"fmt"
 	"net/http"
 	"os"
 
@@ -219,7 +220,39 @@ func (h *UserHandler) AddUsersToCompetition(c *gin.Context, param *model.AddUser
 func (h *UserHandler) EnableUsersInCompetition(c *gin.Context, param *model.CompetitionUserListParam) {
 	ctx := c.Request.Context()
 
-	err := h.userSvc.UpdateCompetitionUserStatus(ctx, param, ojmodel.CompetitionUserStatusNormal)
+	userList, err := h.userSvc.GetUserListByIDList(ctx, param.UserIDList)
+	if err != nil {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+		})
+		h.log.ErrorContext(ctx, "EnableUsersInCompetition get user list failed", logger.Error(err))
+		return
+	}
+	if len(userList) != len(param.UserIDList) {
+		notExistUserIDList := make([]uint64, 0, len(param.UserIDList)-len(userList))
+		for _, userID := range param.UserIDList {
+			exist := false
+			for _, user := range userList {
+				if user.ID == userID {
+					exist = true
+					break
+				}
+			}
+			if !exist {
+				notExistUserIDList = append(notExistUserIDList, userID)
+			}
+		}
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusBadRequest,
+			Message: fmt.Sprintf("user id %v not exist", notExistUserIDList),
+		})
+		h.log.ErrorContext(ctx, "EnableUsersInCompetition user id not exist",
+			logger.Slice("user_id_list", notExistUserIDList))
+		return
+	}
+
+	err = h.userSvc.UpdateCompetitionUserStatus(ctx, param, ojmodel.CompetitionUserStatusNormal)
 	if err != nil {
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,
@@ -238,7 +271,39 @@ func (h *UserHandler) EnableUsersInCompetition(c *gin.Context, param *model.Comp
 func (h *UserHandler) DisableUsersInCompetition(c *gin.Context, param *model.CompetitionUserListParam) {
 	ctx := c.Request.Context()
 
-	err := h.userSvc.UpdateCompetitionUserStatus(ctx, param, ojmodel.CompetitionUserStatusDisabled)
+	userList, err := h.userSvc.GetUserListByIDList(ctx, param.UserIDList)
+	if err != nil {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+		})
+		h.log.ErrorContext(ctx, "DisableUsersInCompetition get user list failed", logger.Error(err))
+		return
+	}
+	if len(userList) != len(param.UserIDList) {
+		notExistUserIDList := make([]uint64, 0, len(param.UserIDList)-len(userList))
+		for _, userID := range param.UserIDList {
+			exist := false
+			for _, user := range userList {
+				if user.ID == userID {
+					exist = true
+					break
+				}
+			}
+			if !exist {
+				notExistUserIDList = append(notExistUserIDList, userID)
+			}
+		}
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusBadRequest,
+			Message: fmt.Sprintf("user id %v not exist", notExistUserIDList),
+		})
+		h.log.ErrorContext(ctx, "EnableUsersInCompetition user id not exist",
+			logger.Slice("user_id_list", notExistUserIDList))
+		return
+	}
+
+	err = h.userSvc.UpdateCompetitionUserStatus(ctx, param, ojmodel.CompetitionUserStatusDisabled)
 	if err != nil {
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,
