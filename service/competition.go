@@ -117,6 +117,17 @@ func (s *CompetitionServiceImpl) CreateCompetition(ctx context.Context, param *m
 		tx.Rollback()
 		return fmt.Errorf("CreateCompetition transaction failed at commit: %w", err)
 	}
+
+	key := fmt.Sprintf(competitionMetaKey, competition.ID)
+	retryCtx := context.WithValue(context.Background(), loggerv2.FieldsKey, ctx.Value(loggerv2.FieldsKey))
+	retry.Do(retryCtx, func() error {
+		return s.rdb.Del(retryCtx, key).Err()
+	}, retry.WithAsync(true), retry.WithCallback(func(err error) {
+		if err != nil {
+			s.log.ErrorContext(retryCtx, "UpdateCompetition failed at delete competition meta cache", logger.Error(err))
+		}
+	}))
+
 	return nil
 }
 
