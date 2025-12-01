@@ -278,6 +278,9 @@ func (h *ProblemHandler) UploadProblemTestcase(c *gin.Context, param *model.Uplo
 			h.log.ErrorContext(ctx, "UploadProblemTestcase write target failed", logger.Error(err), logger.String("target", target))
 			return
 		}
+		h.log.DebugContext(ctx, "UploadProblemTestcase write target success",
+			logger.String("target", target),
+			logger.String("content", string(content)))
 	}
 
 	gintool.GinResponse(c, &gintool.Response{Code: http.StatusOK, Message: "success"})
