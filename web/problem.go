@@ -259,7 +259,7 @@ func (h *ProblemHandler) UploadProblemTestcase(c *gin.Context, param *model.Uplo
 			h.log.ErrorContext(ctx, "UploadProblemTestcase open target failed", logger.Error(err), logger.String("target", target))
 			return
 		}
-		destFile.Close()
+		defer destFile.Close()
 		content, err := io.ReadAll(rc)
 		if err != nil {
 			gintool.GinResponse(c, &gintool.Response{
