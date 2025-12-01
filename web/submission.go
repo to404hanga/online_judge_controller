@@ -8,6 +8,7 @@ import (
 	"github.com/to404hanga/online_judge_controller/constants"
 	"github.com/to404hanga/online_judge_controller/model"
 	"github.com/to404hanga/online_judge_controller/pkg/gintool"
+	"github.com/to404hanga/online_judge_controller/pkg/pointer"
 	"github.com/to404hanga/online_judge_controller/service"
 	"github.com/to404hanga/pkg404/logger"
 	loggerv2 "github.com/to404hanga/pkg404/logger/v2"
@@ -16,13 +17,9 @@ import (
 const SubmissionBucket = "submission"
 
 type SubmissionHandler struct {
-	// minioSvc                *minio.MinIOService
 	submissionSvc  service.SubmissionService
 	competitionSvc service.CompetitionService
 	log            loggerv2.Logger
-	// bucket                  string
-	// uploadDurationSeconds   int
-	// downloadDurationSeconds int
 }
 
 var _ Handler = (*SubmissionHandler)(nil)
@@ -118,6 +115,8 @@ func (h *SubmissionHandler) GetLatestSubmission(c *gin.Context, param *model.Get
 		Data: model.GetLatestSubmissionResponse{
 			Submission: model.Submission{
 				ID:         submission.ID,
+				Code:       submission.Code,
+				Stderr:     pointer.FromPtr(submission.Stderr),
 				Language:   submission.Language.Int8(),
 				Status:     submission.Status.Int8(),
 				Result:     submission.Result.Int8(),

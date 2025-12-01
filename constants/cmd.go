@@ -28,8 +28,7 @@ const (
 
 const (
 	SubmitCompetitionProblemPath = "/SubmitCompetitionProblem" // 提交比赛题目
-	// GetSubmissionListPath = "/GetSubmissionList" // 获取提交列表
-	GetLatestSubmissionPath = "/GetLatestSubmission" // 获取最新提交
+	GetLatestSubmissionPath      = "/GetLatestSubmission"      // 获取最新提交
 )
 
 const (

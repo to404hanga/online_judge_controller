@@ -13,6 +13,7 @@ type SubmitCompetitionProblemParam struct {
 type Submission struct {
 	ID         uint64    `json:"id"`
 	Code       string    `json:"code"`
+	Stderr     string    `json:"stderr"`
 	Language   int8      `json:"language"`
 	Status     int8      `json:"status"`
 	Result     int8      `json:"result"`
