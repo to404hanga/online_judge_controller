@@ -24,6 +24,8 @@ const (
 	GetCompetitionRankingListPath                 = "/GetCompetitionRankingList"                 // 获取比赛排名列表
 	GetCompetitionFastestSolverListPath           = "/GetCompetitionFastestSolverList"           // 获取比赛各个题目最快通过提交的用户列表
 	ExportCompetitionDataPath                     = "/ExportCompetitionData"                     // 导出比赛数据
+	InitRankingPath                               = "/InitRanking"                               // 初始化比赛排名
+	UpdateScorePath                               = "/UpdateScore"                               // 更新比赛用户分数, 仅内部测试用, 后续 release 版本移除
 )
 
 const (

@@ -1,5 +1,7 @@
 package model
 
+import "time"
+
 type GetCompetitionRankingListParam struct {
 	CompetitionCommonParam `json:"-"`
 
@@ -12,6 +14,7 @@ type Problem struct {
 	Result     ProblemStatut `json:"result"`      // 题目状态: 0-未尝试, 1-尝试中, 2-通过
 	AcceptedAt int64         `json:"accepted_at"` // 通过时间(不含罚时, 单位: 毫秒)
 	Retrys     int           `json:"retries"`     // 重试次数
+	IsFastest  bool          `json:"is_fastest"`
 }
 
 type ProblemStatut int8
@@ -36,4 +39,20 @@ type GetCompetitionRankingListResponse struct {
 	Total    int       `json:"total"`
 	Page     int       `json:"page"`
 	PageSize int       `json:"page_size"`
+}
+
+type InitRankingParam struct {
+	CommonParam `json:"-"`
+
+	CompetitionID uint64 `json:"competition_id" binding:"required"`
+}
+
+// 仅内部测试用, 后续 release 版本移除
+type UpdateScoreParam struct {
+	CompetitionCommonParam `json:"-"`
+
+	ProblemID      uint64    `json:"problem_id" binding:"required"`
+	IsAccepted     bool      `json:"is_accepted" binding:"required"`
+	SubmissionTime time.Time `json:"submission_time" binding:"required"`
+	StartTime      time.Time `json:"start_time" binding:"required"`
 }

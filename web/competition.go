@@ -47,6 +47,8 @@ func (h *CompetitionHandler) Register(r *gin.Engine) {
 	r.GET(constants.GetCompetitionRankingListPath, gintool.WrapCompetitionHandler(h.GetCompetitionRankingList, h.log))
 	r.GET(constants.GetCompetitionFastestSolverListPath, gintool.WrapCompetitionHandler(h.GetCompetitionFastestSolverList, h.log))
 	r.GET(constants.ExportCompetitionDataPath, gintool.WrapCompetitionHandler(h.ExportCompetitionData, h.log))
+	r.POST(constants.InitRankingPath, gintool.WrapHandler(h.InitRanking, h.log))
+	r.PUT(constants.UpdateScorePath, gintool.WrapCompetitionHandler(h.UpdateScore, h.log)) // 仅内部测试用, 后续 release 版本移除
 }
 
 func (h *CompetitionHandler) CreateCompetition(c *gin.Context, param *model.CreateCompetitionParam) {
@@ -371,4 +373,43 @@ func (h *CompetitionHandler) ExportCompetitionData(c *gin.Context, param *model.
 
 	// 将文件内容响应给前端
 	c.File(filepath)
+}
+
+func (h *CompetitionHandler) InitRanking(c *gin.Context, param *model.InitRankingParam) {
+	ctx := loggerv2.ContextWithFields(c.Request.Context(),
+		logger.Uint64("competition_id", param.CompetitionID))
+
+	err := h.rankingSvc.InitCompetitionRanking(ctx, param.CompetitionID)
+	if err != nil {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusInternalServerError,
+			Message: fmt.Sprintf("InitCompetitionRanking failed: %s", err.Error()),
+		})
+		h.log.ErrorContext(ctx, "InitCompetitionRanking failed", logger.Error(err))
+		return
+	}
+	gintool.GinResponse(c, &gintool.Response{
+		Code:    http.StatusOK,
+		Message: "success",
+	})
+}
+
+// 仅内部测试用, 后续 release 版本移除
+func (h *CompetitionHandler) UpdateScore(c *gin.Context, param *model.UpdateScoreParam) {
+	ctx := loggerv2.ContextWithFields(c.Request.Context(),
+		logger.Uint64("competition_id", param.CompetitionID))
+
+	err := h.rankingSvc.UpdateUserScore(ctx, param.CompetitionID, param.ProblemID, param.Operator, param.IsAccepted, param.SubmissionTime, param.StartTime)
+	if err != nil {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusInternalServerError,
+			Message: fmt.Sprintf("UpdateUserScore failed: %s", err.Error()),
+		})
+		h.log.ErrorContext(ctx, "UpdateUserScore failed", logger.Error(err))
+		return
+	}
+	gintool.GinResponse(c, &gintool.Response{
+		Code:    http.StatusOK,
+		Message: "success",
+	})
 }
