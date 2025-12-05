@@ -399,7 +399,7 @@ func (h *CompetitionHandler) UpdateScore(c *gin.Context, param *model.UpdateScor
 	ctx := loggerv2.ContextWithFields(c.Request.Context(),
 		logger.Uint64("competition_id", param.CompetitionID))
 
-	err := h.rankingSvc.UpdateUserScore(ctx, param.CompetitionID, param.ProblemID, param.UserID, param.IsAccepted, param.SubmissionTime, param.StartTime)
+	err := h.rankingSvc.UpdateUserScore(ctx, param.CompetitionID, param.ProblemID, param.UserID, *param.IsAccepted, param.SubmissionTime, param.StartTime)
 	if err != nil {
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,

@@ -54,7 +54,7 @@ type UpdateScoreParam struct {
 	CompetitionID  uint64    `json:"competition_id" binding:"required"`
 	UserID         uint64    `json:"user_id" binding:"required"`
 	ProblemID      uint64    `json:"problem_id" binding:"required"`
-	IsAccepted     bool      `json:"is_accepted" binding:"required"`
+	IsAccepted     *bool     `json:"is_accepted" binding:"required"`
 	SubmissionTime time.Time `json:"submission_time" binding:"required"`
 	StartTime      time.Time `json:"start_time" binding:"required"`
 }
