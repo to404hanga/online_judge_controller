@@ -184,7 +184,7 @@ func (s *RankingServiceImpl) UpdateUserScore(ctx context.Context, competitionID,
 		if problem.Result != model.ProblemStatusAccepted {
 			userData.TotalAccepted++
 			penaltyTime := int64(problem.Retrys * PenaltyTime)
-			userData.TotalTimeUsed += offsetMs + penaltyTime
+			userData.TotalTimeUsed = offsetMs + penaltyTime
 			problem.Result = model.ProblemStatusAccepted
 			problem.AcceptedAt = offsetMs
 			// 最快通过标记更新
