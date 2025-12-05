@@ -203,11 +203,11 @@ func (s *RankingServiceImpl) UpdateUserScore(ctx context.Context, competitionID,
 					ProblemID  uint64 `json:"problem_id"`
 					UserID     uint64 `json:"user_id"`
 					AcceptedAt int64  `json:"accepted_at"`
-				}{ProblemID: problemID, UserID: userID, AcceptedAt: offsetMs})
+				}{ProblemID: problemID, UserID: userID, AcceptedAt: userData.TotalTimeUsed})
 				_ = s.rdb.Set(ctx, fastKey, fastBytes, 8*time.Hour).Err()
 			} else {
 				_ = json.Unmarshal([]byte(prevStr), &prev)
-				if prev.AcceptedAt == 0 || offsetMs < prev.AcceptedAt {
+				if prev.AcceptedAt == 0 || userData.TotalTimeUsed < prev.AcceptedAt {
 					// 更新最快用户
 					if prev.UserID != 0 && prev.UserID != userID {
 						// 取消之前用户的最快标记
@@ -229,7 +229,7 @@ func (s *RankingServiceImpl) UpdateUserScore(ctx context.Context, competitionID,
 						ProblemID  uint64 `json:"problem_id"`
 						UserID     uint64 `json:"user_id"`
 						AcceptedAt int64  `json:"accepted_at"`
-					}{ProblemID: problemID, UserID: userID, AcceptedAt: offsetMs})
+					}{ProblemID: problemID, UserID: userID, AcceptedAt: userData.TotalTimeUsed})
 					_ = s.rdb.Set(ctx, fastKey, fastBytes, 8*time.Hour).Err()
 				}
 			}
