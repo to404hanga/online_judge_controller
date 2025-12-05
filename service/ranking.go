@@ -62,12 +62,12 @@ const (
 
 // UserRankingData 用户排行榜数据
 type UserRankingData struct {
-	UserID        uint64                   `json:"user_id"`
+	UserID        uint64                   `json:"user_id" gorm:"-"`
 	Username      string                   `json:"username" gorm:"column:username"`
 	Realname      string                   `json:"realname" gorm:"column:realname"`
-	TotalAccepted int                      `json:"total_accepted"`
-	TotalTimeUsed int64                    `json:"total_time_used"`
-	Problems      map[uint64]model.Problem `json:"problems"`
+	TotalAccepted int                      `json:"total_accepted" gorm:"-"`
+	TotalTimeUsed int64                    `json:"total_time_used" gorm:"-"`
+	Problems      map[uint64]model.Problem `json:"problems" gorm:"-"`
 }
 
 // GetCompetitionRankingList 获取比赛排行榜
