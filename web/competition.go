@@ -48,7 +48,7 @@ func (h *CompetitionHandler) Register(r *gin.Engine) {
 	r.GET(constants.GetCompetitionFastestSolverListPath, gintool.WrapCompetitionHandler(h.GetCompetitionFastestSolverList, h.log))
 	r.GET(constants.ExportCompetitionDataPath, gintool.WrapCompetitionHandler(h.ExportCompetitionData, h.log))
 	r.POST(constants.InitRankingPath, gintool.WrapHandler(h.InitRanking, h.log))
-	r.PUT(constants.UpdateScorePath, gintool.WrapCompetitionHandler(h.UpdateScore, h.log)) // 仅内部测试用, 后续 release 版本移除
+	r.PUT(constants.UpdateScorePath, gintool.WrapHandler(h.UpdateScore, h.log)) // 仅内部测试用, 后续 release 版本移除
 }
 
 func (h *CompetitionHandler) CreateCompetition(c *gin.Context, param *model.CreateCompetitionParam) {
@@ -399,7 +399,7 @@ func (h *CompetitionHandler) UpdateScore(c *gin.Context, param *model.UpdateScor
 	ctx := loggerv2.ContextWithFields(c.Request.Context(),
 		logger.Uint64("competition_id", param.CompetitionID))
 
-	err := h.rankingSvc.UpdateUserScore(ctx, param.CompetitionID, param.ProblemID, param.Operator, param.IsAccepted, param.SubmissionTime, param.StartTime)
+	err := h.rankingSvc.UpdateUserScore(ctx, param.CompetitionID, param.ProblemID, param.UserID, param.IsAccepted, param.SubmissionTime, param.StartTime)
 	if err != nil {
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,

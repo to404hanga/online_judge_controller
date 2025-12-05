@@ -49,8 +49,10 @@ type InitRankingParam struct {
 
 // 仅内部测试用, 后续 release 版本移除
 type UpdateScoreParam struct {
-	CompetitionCommonParam `json:"-"`
+	CommonParam `json:"-"`
 
+	CompetitionID  uint64    `json:"competition_id" binding:"required"`
+	UserID         uint64    `json:"user_id" binding:"required"`
 	ProblemID      uint64    `json:"problem_id" binding:"required"`
 	IsAccepted     bool      `json:"is_accepted" binding:"required"`
 	SubmissionTime time.Time `json:"submission_time" binding:"required"`
