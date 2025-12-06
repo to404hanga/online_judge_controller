@@ -46,7 +46,7 @@ func (h *CompetitionHandler) Register(r *gin.Engine) {
 	r.POST(constants.StartCompetitionPath, gintool.WrapHandler(h.StartCompetition, h.log))
 	r.GET(constants.GetCompetitionRankingListPath, gintool.WrapCompetitionHandler(h.GetCompetitionRankingList, h.log))
 	r.GET(constants.GetCompetitionFastestSolverListPath, gintool.WrapCompetitionHandler(h.GetCompetitionFastestSolverList, h.log))
-	r.GET(constants.ExportCompetitionDataPath, gintool.WrapCompetitionHandler(h.ExportCompetitionData, h.log))
+	r.GET(constants.ExportCompetitionDataPath, gintool.WrapHandler(h.ExportCompetitionData, h.log))
 	r.POST(constants.InitRankingPath, gintool.WrapHandler(h.InitRanking, h.log))
 	r.PUT(constants.UpdateScorePath, gintool.WrapHandler(h.UpdateScore, h.log)) // 仅内部测试用, 后续 release 版本移除
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	_ "net/http/pprof"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/pflag"

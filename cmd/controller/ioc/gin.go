@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-contrib/pprof"
 	"github.com/spf13/viper"
 	"github.com/to404hanga/online_judge_controller/config"
 	"github.com/to404hanga/online_judge_controller/pkg/gintool"
@@ -41,11 +42,13 @@ func InitGinServer(l loggerv2.Logger, jwtHandler jwt.Handler, db *gorm.DB, compe
 	jwtBuilder := middleware.NewJWTMiddlewareBuilder(jwtHandler, db, l, cfg.CheckCompetitionPath)
 
 	engine := gin.Default()
+	pprof.Register(engine)
 	engine.Use(
 		corsBuilder.Build(),
 		jwtBuilder.CheckCompetition(),
 		gintool.ContextMiddleware(),
 	)
+	
 
 	competitionHandler.Register(engine)
 	problemHandler.Register(engine)

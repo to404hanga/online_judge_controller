@@ -10,7 +10,7 @@ import (
 
 const detailSql = `
 WITH ranked_submissions AS (
-    SELECT 
+    SELECT
         id,
         competition_id,
         user_id,
@@ -19,35 +19,36 @@ WITH ranked_submissions AS (
         created_at,
         -- 为每个用户每个题目的所有提交按时间排序
         ROW_NUMBER() OVER (
-            PARTITION BY competition_id, user_id, problem_id 
-            ORDER BY created_at
-        ) as submission_order,
+            PARTITION BY competition_id, user_id, problem_id
+            ORDER BY created_at, id
+        ) AS submission_order,
         -- 为每个用户每个题目的Accepted提交按时间排序
-        ROW_NUMBER() OVER (
-            PARTITION BY competition_id, user_id, problem_id 
-            ORDER BY created_at
-        ) FILTER (WHERE result = 1) as accepted_order
+        SUM(CASE WHEN result = 1 THEN 1 ELSE 0 END) OVER (
+            PARTITION BY competition_id, user_id, problem_id
+            ORDER BY created_at, id
+            ROWS UNBOUNDED PRECEDING
+        ) AS accepted_order
     FROM submission
-    WHERE competition_id = ? -- 替换为具体的比赛ID
+    WHERE competition_id = ?
 ),
 first_accepted AS (
-    SELECT 
+    SELECT
         competition_id,
         user_id,
         problem_id,
-        created_at as accepted_time,
-        submission_order - 1 as attempts_before_accepted
+        created_at AS accepted_time,
+        submission_order - 1 AS attempts_before_accepted
     FROM ranked_submissions
     WHERE result = 1 AND accepted_order = 1
 )
-SELECT 
-    fa.competition_id as competition_id,
-    fa.user_id as user_id,
-    fa.problem_id as problem_id,
-    u.username as username,
-	u.realname as realname,
-    fa.accepted_time as accepted_time,
-    fa.attempts_before_accepted as attempts_before_accepted
+SELECT
+    fa.competition_id AS competition_id,
+    fa.user_id AS user_id,
+    fa.problem_id AS problem_id,
+    u.username AS username,
+    u.realname AS realname,
+    fa.accepted_time AS accepted_time,
+    fa.attempts_before_accepted AS attempts_before_accepted
 FROM first_accepted fa
 LEFT JOIN user u ON fa.user_id = u.id
 ORDER BY fa.user_id, fa.problem_id

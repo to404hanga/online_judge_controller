@@ -6,6 +6,7 @@ require (
 	github.com/IBM/sarama v1.45.0
 	github.com/bytedance/sonic v1.14.2
 	github.com/gin-contrib/cors v1.7.6
+	github.com/gin-contrib/pprof v1.5.3
 	github.com/gin-gonic/gin v1.11.0
 	github.com/go-playground/validator/v10 v10.27.0
 	github.com/golang-jwt/jwt/v5 v5.3.0
