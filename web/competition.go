@@ -49,6 +49,7 @@ func (h *CompetitionHandler) Register(r *gin.Engine) {
 	r.GET(constants.ExportCompetitionDataPath, gintool.WrapHandler(h.ExportCompetitionData, h.log))
 	r.POST(constants.InitRankingPath, gintool.WrapHandler(h.InitRanking, h.log))
 	r.PUT(constants.UpdateScorePath, gintool.WrapHandler(h.UpdateScore, h.log)) // 仅内部测试用, 后续 release 版本移除
+	r.GET(constants.GetCompetitionListPath, gintool.WrapHandler(h.GetCompetitionList, h.log))
 }
 
 func (h *CompetitionHandler) CreateCompetition(c *gin.Context, param *model.CreateCompetitionParam) {
@@ -411,5 +412,31 @@ func (h *CompetitionHandler) UpdateScore(c *gin.Context, param *model.UpdateScor
 	gintool.GinResponse(c, &gintool.Response{
 		Code:    http.StatusOK,
 		Message: "success",
+	})
+}
+
+func (h *CompetitionHandler) GetCompetitionList(c *gin.Context, param *model.GetCompetitionListParam) {
+	ctx := loggerv2.ContextWithFields(c.Request.Context(),
+		logger.Int("page", param.Page),
+		logger.Int("page_size", param.PageSize))
+
+	competitionList, total, err := h.competitionSvc.GetCompetitionList(ctx, param)
+	if err != nil {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusInternalServerError,
+			Message: fmt.Sprintf("GetCompetitionList failed: %s", err.Error()),
+		})
+		h.log.ErrorContext(ctx, "GetCompetitionList failed", logger.Error(err))
+		return
+	}
+	gintool.GinResponse(c, &gintool.Response{
+		Code:    http.StatusOK,
+		Message: "success",
+		Data: model.GetCompetitionListResponse{
+			List:     competitionList,
+			Total:    total,
+			Page:     param.Page,
+			PageSize: param.PageSize,
+		},
 	})
 }

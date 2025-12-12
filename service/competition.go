@@ -38,6 +38,8 @@ type CompetitionService interface {
 	CheckCompetitionTime(ctx context.Context, competitionID uint64) (bool, error)
 	// GetCompetition 获取比赛信息
 	GetCompetition(ctx context.Context, competitionID uint64) (*ojmodel.Competition, error)
+	// GetCompetitionList 获取比赛列表
+	GetCompetitionList(ctx context.Context, param *model.GetCompetitionListParam) ([]ojmodel.Competition, int, error)
 }
 
 const (
@@ -437,6 +439,7 @@ func (s *CompetitionServiceImpl) CheckCompetitionTime(ctx context.Context, compe
 	// 4. 从数据库加载比赛元数据
 	err = s.db.WithContext(ctx).
 		Where("id = ?", competitionID).
+		Where("status = ?", ojmodel.CompetitionStatusPublished).
 		First(&competition).Error
 	if err != nil {
 		return false, fmt.Errorf("CheckCompetitionTime: failed to select from competition: %w", err)
@@ -513,4 +516,28 @@ func (s *CompetitionServiceImpl) GetCompetition(ctx context.Context, competition
 	}
 
 	return &competition, nil
+}
+
+func (s *CompetitionServiceImpl) GetCompetitionList(ctx context.Context, param *model.GetCompetitionListParam) ([]ojmodel.Competition, int, error) {
+	var competitions []ojmodel.Competition
+	var total int64
+
+	query := s.db.WithContext(ctx).Model(&ojmodel.Competition{})
+	if param.Status != nil {
+		query = query.Where("status = ?", *param.Status)
+	}
+
+	err := query.Count(&total).Error
+	if err != nil {
+		return nil, 0, fmt.Errorf("GetCompetitionList: failed to count competition: %w", err)
+	}
+	err = query.Order("id DESC").
+		Offset((param.Page - 1) * param.PageSize).
+		Limit(param.PageSize).
+		Find(&competitions).Error
+	if err != nil {
+		return nil, 0, fmt.Errorf("GetCompetitionList: failed to select competition: %w", err)
+	}
+
+	return competitions, int(total), nil
 }

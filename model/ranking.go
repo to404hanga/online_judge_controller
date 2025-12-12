@@ -1,6 +1,10 @@
 package model
 
-import "time"
+import (
+	"time"
+
+	ojmodel "github.com/to404hanga/online_judge_common/model"
+)
 
 type GetCompetitionRankingListParam struct {
 	CompetitionCommonParam `json:"-"`
@@ -57,4 +61,19 @@ type UpdateScoreParam struct {
 	IsAccepted     *bool     `json:"is_accepted" binding:"required"`
 	SubmissionTime time.Time `json:"submission_time" binding:"required"`
 	StartTime      time.Time `json:"start_time" binding:"required"`
+}
+
+type GetCompetitionListParam struct {
+	CommonParam `json:"-"`
+
+	Page     int                        `form:"page" binding:"required,min=1"`
+	PageSize int                        `form:"page_size" binding:"required,min=10,max=100"`
+	Status   *ojmodel.CompetitionStatus `form:"status" binding:"omitempty,oneof=0 1 2"`
+}
+
+type GetCompetitionListResponse struct {
+	List     []ojmodel.Competition `json:"list"`
+	Total    int                   `json:"total"`
+	Page     int                   `json:"page"`
+	PageSize int                   `json:"page_size"`
 }
