@@ -19,7 +19,7 @@ log:
 
 gin:
   allowOrigins:
-    - "*"
+    - "http://localhost:5173"
   allowMethods:
     - "GET"
     - "POST"
@@ -33,12 +33,13 @@ gin:
     - "X-Refresh-Token"
     - "X-Competition-JWT-Token"
     - "X-Competition-Refresh-Token"
+    - "X-Description-Hash"
   exposeHeaders:
     - "X-JWT-Token"
     - "X-Refresh-Token"
     - "X-Competition-JWT-Token"
     - "X-Competition-Refresh-Token"
-  allowCredentials: false
+  allowCredentials: true
   maxAge: 3600 # 单位: 秒
   checkCompetitionPath:
     - "/GetCompetitionProblemListWithPresignedURL"
