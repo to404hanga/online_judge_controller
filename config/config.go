@@ -16,12 +16,6 @@ func (LoggerConfig) Key() string {
 }
 
 type GinConfig struct {
-	AllowOrigins         []string `yaml:"allowOrigins"`         // 允许的来源，* 表示所有来源
-	AllowMethods         []string `yaml:"allowMethods"`         // 允许的方法，* 表示所有方法
-	AllowHeaders         []string `yaml:"allowHeaders"`         // 允许的请求头，* 表示所有请求头
-	ExposeHeaders        []string `yaml:"exposeHeaders"`        // 暴露的响应头，* 表示所有响应头
-	AllowCredentials     bool     `yaml:"allowCredentials"`     // 是否允许携带凭证（如 Cookies）
-	MaxAge               int64    `yaml:"maxAge"`               // 预检请求的缓存时间（单位: 秒）
 	Addr                 string   `yaml:"addr"`                 // 服务地址
 	CheckCompetitionPath []string `yaml:"checkCompetitionPath"` // 需要检查比赛 token 的路径
 }
