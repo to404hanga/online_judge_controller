@@ -25,7 +25,7 @@ type ProblemService interface {
 	// GetProblemByID 获取题目
 	GetProblemByID(ctx context.Context, problemID, competitionID uint64) (*ojmodel.Problem, error)
 	// GetProblemList 获取题目列表
-	GetProblemList(ctx context.Context, param *model.GetProblemListParam) ([]ojmodel.Problem, error)
+	GetProblemList(ctx context.Context, param *model.GetProblemListParam) ([]ojmodel.Problem, int, error)
 }
 
 const (
@@ -200,7 +200,7 @@ func (s *ProblemServiceImpl) GetProblemByID(ctx context.Context, problemID, comp
 }
 
 // GetProblemList 获取题目列表
-func (s *ProblemServiceImpl) GetProblemList(ctx context.Context, param *model.GetProblemListParam) ([]ojmodel.Problem, error) {
+func (s *ProblemServiceImpl) GetProblemList(ctx context.Context, param *model.GetProblemListParam) ([]ojmodel.Problem, int, error) {
 	var problems []ojmodel.Problem
 	query := s.db.WithContext(ctx).Model(&ojmodel.Problem{})
 	if param.Title != "" {
@@ -228,12 +228,18 @@ func (s *ProblemServiceImpl) GetProblemList(ctx context.Context, param *model.Ge
 		query = query.Order(orderBy + " ASC")
 	}
 
-	err := query.Limit(param.PageSize).
+	var count int64
+	err := query.Count(&count).Error
+	if err != nil {
+		return nil, 0, fmt.Errorf("GetProblemList failed: %w", err)
+	}
+
+	err = query.Limit(param.PageSize).
 		Offset((param.Page - 1) * param.PageSize).
 		Find(&problems).Error
 	if err != nil {
-		return nil, fmt.Errorf("GetProblemList failed: %w", err)
+		return nil, 0, fmt.Errorf("GetProblemList failed: %w", err)
 	}
 
-	return problems, nil
+	return problems, int(count), nil
 }

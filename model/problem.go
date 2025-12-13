@@ -28,36 +28,16 @@ type UpdateProblemParam struct {
 	Visible         *int8   `json:"visible" binding:"omitempty,oneof=0 1"`             // 非比赛期间是否可见
 }
 
-// type GetProblemTestcaseUploadPresignedURLParam struct {
-// 	CommonParam `json:"-"`
-
-// 	Hash string `header:"X-Testcase-Hash" binding:"required"`
-// }
-
-// type GetProblemTestcaseUploadPresignedURLResponse struct {
-// 	PresignedURL string `json:"presigned_url"`
-// }
-
-// type GetProblemTestcaseDownloadPresignedURLParam struct {
-// 	CommonParam `json:"-"`
-
-// 	ProblemID uint64 `json:"problem_id" binding:"required"`
-// }
-
-// type GetProblemTestcaseDownloadPresignedURLResponse struct {
-// 	PresignedURL string `json:"presigned_url"`
-// }
-
 type GetProblemListParam struct {
 	CommonParam `json:"-"`
 
-	Desc        bool   `json:"desc"`
-	OrderBy     string `json:"order_by" binding:"omitempty,oneof=id title time_limit memory_limit"`
-	Title       string `json:"title"`
-	Status      *int8  `json:"status" binding:"omitempty,oneof=0 1 2"`
-	Visible     *int8  `json:"visible" binding:"omitempty,oneof=0 1"`
-	TimeLimit   *int   `json:"time_limit"`
-	MemoryLimit *int   `json:"memory_limit"`
+	Desc        bool   `form:"desc"`
+	OrderBy     string `form:"order_by" binding:"omitempty,oneof=id created_at updated_at"`
+	Title       string `form:"title"`
+	Status      *int8  `form:"status" binding:"omitempty,oneof=0 1 2"`
+	Visible     *int8  `form:"visible" binding:"omitempty,oneof=0 1"`
+	TimeLimit   *int   `form:"time_limit"`
+	MemoryLimit *int   `form:"memory_limit"`
 
 	Page     int `form:"page" binding:"required,min=1"`
 	PageSize int `form:"page_size" binding:"required,min=10,max=100"`

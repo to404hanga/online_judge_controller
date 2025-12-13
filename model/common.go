@@ -25,8 +25,3 @@ type CompetitionCommonParamInterface interface {
 func (p *CompetitionCommonParam) SetCompetitionID(id uint64) {
 	p.CompetitionID = id
 }
-
-type PresignedURL struct {
-	ID  uint64 `json:"id"`
-	URL string `json:"url"`
-}

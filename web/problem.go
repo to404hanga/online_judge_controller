@@ -143,7 +143,7 @@ func (h *ProblemHandler) GetProblemList(c *gin.Context, param *model.GetProblemL
 
 	ctx := loggerv2.ContextWithFields(c.Request.Context(), fields...)
 
-	problems, err := h.problemSvc.GetProblemList(ctx, param)
+	problems, total, err := h.problemSvc.GetProblemList(ctx, param)
 	if err != nil {
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,
@@ -158,7 +158,7 @@ func (h *ProblemHandler) GetProblemList(c *gin.Context, param *model.GetProblemL
 		Message: "success",
 		Data: &model.GetProblemListResponse{
 			List:  problems,
-			Total: len(problems),
+			Total: total,
 		},
 	})
 }
