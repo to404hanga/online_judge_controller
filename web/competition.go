@@ -50,6 +50,7 @@ func (h *CompetitionHandler) Register(r *gin.Engine) {
 	r.POST(constants.InitRankingPath, gintool.WrapHandler(h.InitRanking, h.log))
 	r.PUT(constants.UpdateScorePath, gintool.WrapHandler(h.UpdateScore, h.log)) // 仅内部测试用, 后续 release 版本移除
 	r.GET(constants.GetCompetitionListPath, gintool.WrapHandler(h.GetCompetitionList, h.log))
+	// TODO: 增加获取比赛题目列表以及获取比赛题目详情接口
 }
 
 func (h *CompetitionHandler) CreateCompetition(c *gin.Context, param *model.CreateCompetitionParam) {

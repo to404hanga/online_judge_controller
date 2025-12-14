@@ -17,26 +17,22 @@ import (
 	"github.com/to404hanga/online_judge_controller/model"
 	"github.com/to404hanga/online_judge_controller/pkg/gintool"
 	"github.com/to404hanga/online_judge_controller/service"
-	"github.com/to404hanga/online_judge_controller/web/jwt"
 	"github.com/to404hanga/pkg404/logger"
 	loggerv2 "github.com/to404hanga/pkg404/logger/v2"
 )
 
 type ProblemHandler struct {
 	problemSvc service.ProblemService
-	//minioSvc                *minio.MinIOService
-	log loggerv2.Logger
-	// problemBucket           string
-	// testcaseBucket          string
-	// uploadDurationSeconds   int
-	// downloadDurationSeconds int
+	userSvc    service.UserService
+	log        loggerv2.Logger
 }
 
 var _ Handler = (*ProblemHandler)(nil)
 
-func NewProblemHandler(problemSvc service.ProblemService, log loggerv2.Logger) *ProblemHandler {
+func NewProblemHandler(problemSvc service.ProblemService, userSvc service.UserService, log loggerv2.Logger) *ProblemHandler {
 	return &ProblemHandler{
 		problemSvc: problemSvc,
+		userSvc:    userSvc,
 		log:        log,
 	}
 }
@@ -289,20 +285,7 @@ func (h *ProblemHandler) UploadProblemTestcase(c *gin.Context, param *model.Uplo
 func (h *ProblemHandler) GetProblem(c *gin.Context, param *model.GetProblemParam) {
 	ctx := loggerv2.ContextWithFields(c.Request.Context(), logger.Uint64("problem_id", param.ProblemID))
 
-	if userClaims, exists := c.Get(constants.ContextUserClaimsKey); exists {
-		competitionUserClaims, ok := userClaims.(jwt.CompetitionUserClaims)
-		if !ok {
-			gintool.GinResponse(c, &gintool.Response{
-				Code:    http.StatusBadRequest,
-				Message: "competition user claims type assertion failed",
-			})
-			h.log.ErrorContext(c.Request.Context(), "WrapCompetitionHandler competition user claims type assertion failed")
-			return
-		}
-		param.SetCompetitionID(competitionUserClaims.CompetitionID)
-	}
-
-	problem, err := h.problemSvc.GetProblemByID(ctx, param.ProblemID, param.CompetitionID)
+	problem, err := h.problemSvc.GetProblemByID(ctx, param.ProblemID)
 	if err != nil {
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,
@@ -312,7 +295,27 @@ func (h *ProblemHandler) GetProblem(c *gin.Context, param *model.GetProblemParam
 		return
 	}
 
+	creator, err := h.userSvc.GetAdminByID(ctx, problem.CreatorID)
+	if err != nil {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusInternalServerError,
+			Message: "internal error",
+		})
+		h.log.ErrorContext(ctx, "GetUserByID failed", logger.Error(err))
+		return
+	}
+	updater, err := h.userSvc.GetAdminByID(ctx, problem.UpdaterID)
+	if err != nil {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusInternalServerError,
+			Message: "internal error",
+		})
+		h.log.ErrorContext(ctx, "GetUserByID failed", logger.Error(err))
+		return
+	}
 	gintool.GinResponse(c, &gintool.Response{Code: http.StatusOK, Data: model.GetProblemResponse{
-		Problem: problem,
+		Problem:         problem,
+		CreatorRealname: creator.Realname,
+		UpdaterRealname: updater.Realname,
 	}})
 }

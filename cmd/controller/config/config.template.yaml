@@ -26,7 +26,6 @@ gin:
     - "/SubmitCompetitionProblem"
     - "/GetSubmissionDownloadPresignedURL"
     - "/GetLatestSubmission"
-    - "/GetProblem"
   addr: ":8080"
 
 redis:

@@ -55,11 +55,13 @@ type UploadProblemTestcaseParam struct {
 }
 
 type GetProblemParam struct {
-	CompetitionCommonParam `json:"-"`
+	CommonParam `json:"-"`
 
-	ProblemID uint64 `json:"problem_id" binding:"required"`
+	ProblemID uint64 `form:"problem_id" binding:"required"`
 }
 
 type GetProblemResponse struct {
 	*ojmodel.Problem `json:",inline"`
+	CreatorRealname  string `json:"creator_realname"`
+	UpdaterRealname  string `json:"updater_realname"`
 }

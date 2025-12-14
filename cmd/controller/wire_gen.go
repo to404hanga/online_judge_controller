@@ -14,10 +14,6 @@ import (
 	"github.com/to404hanga/online_judge_controller/web"
 )
 
-import (
-	_ "net/http/pprof"
-)
-
 // Injectors from wire.go:
 
 func BuildDependency() *web.GinServer {
@@ -29,14 +25,14 @@ func BuildDependency() *web.GinServer {
 	rankingService := ioc2.InitRankingService(db, cmdable, logger)
 	competitionHandler := web.NewCompetitionHandler(competitionService, rankingService, handler, logger)
 	problemService := service.NewProblemService(db, cmdable, logger)
-	problemHandler := web.NewProblemHandler(problemService, logger)
+	userService := service.NewUserService(db, logger)
+	problemHandler := web.NewProblemHandler(problemService, userService, logger)
 	client := ioc.InitKafka()
 	syncProducer := ioc.InitSyncProducer(client)
 	producer := event.NewSaramaProducer(syncProducer)
 	submissionService := service.NewSubmissionService(db, cmdable, producer, logger)
 	submissionHandler := web.NewSubmissionHandler(submissionService, competitionService, logger)
 	healthHandler := web.NewHealthHandler(logger)
-	userService := service.NewUserService(db, logger)
 	userHandler := web.NewUserHandler(logger, userService, competitionService)
 	ginServer := ioc2.InitGinServer(logger, handler, db, competitionHandler, problemHandler, submissionHandler, healthHandler, userHandler)
 	return ginServer

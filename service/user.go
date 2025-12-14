@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	ojmodel "github.com/to404hanga/online_judge_common/model"
@@ -26,6 +27,8 @@ type UserService interface {
 	GetUserListByIDList(ctx context.Context, idList []uint64) ([]ojmodel.User, error)
 	// UpdateCompetitionUserStatus 更新比赛用户状态
 	UpdateCompetitionUserStatus(ctx context.Context, param *model.CompetitionUserListParam, status ojmodel.CompetitionUserStatus) error
+	// GetAdminByID 获取管理员用户信息
+	GetAdminByID(ctx context.Context, adminID uint64) (*ojmodel.User, error)
 }
 
 type UserServiceImpl struct {
@@ -155,4 +158,18 @@ func (s *UserServiceImpl) UpdateCompetitionUserStatus(ctx context.Context, param
 		return fmt.Errorf("UpdateCompetitionUserStatus failed: %w", err)
 	}
 	return nil
+}
+
+// GetAdminByID 获取管理员用户信息
+func (s *UserServiceImpl) GetAdminByID(ctx context.Context, adminID uint64) (*ojmodel.User, error) {
+	var admin ojmodel.User
+	err := s.db.WithContext(ctx).
+		Where("id = ?", adminID).
+		Where("role = ?", ojmodel.UserRoleAdmin).
+		Select("id", "username", "realname", "role", "status", "created_at", "updated_at").
+		First(&admin).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, fmt.Errorf("GetAdminByID failed: %w", err)
+	}
+	return &admin, nil
 }
