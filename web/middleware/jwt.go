@@ -33,9 +33,12 @@ func NewJWTMiddlewareBuilder(handler ojjwt.Handler, db *gorm.DB, log loggerv2.Lo
 func (m *JWTMiddlewareBuilder) CheckCompetition() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		path := ctx.Request.URL.Path
+		parts := strings.Split(path, "?")
+		path = parts[0]
+
 		flag := false
 		for _, p := range m.checkCompetitionPath {
-			if strings.HasPrefix(path, p) {
+			if p == path {
 				flag = true
 				break
 			}

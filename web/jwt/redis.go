@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -58,16 +57,13 @@ func (h *RedisJWTHandler) SetCompetitionToken(ctx *gin.Context, competitionId, u
 }
 
 func (h *RedisJWTHandler) ExtractToken(ctx *gin.Context) string {
-	// 优先从 X-Competition-JWT-Token Header 提取token
+	// 优先从 X-Competition-JWT-Token Header 提取 token
 	authCode := ctx.GetHeader(constants.HeaderLoginTokenKey)
 	if authCode != "" {
-		segs := strings.Split(authCode, " ")
-		if len(segs) == 2 && segs[0] == "Bearer" {
-			return segs[1]
-		}
+		return authCode
 	}
 
-	// 如果Header中没有，尝试从Cookie中提取
+	// 如果 Header 中没有，尝试从 Cookie 中提取
 	tokenFromCookie, err := ctx.Cookie(constants.HeaderLoginTokenKey)
 	if err != nil || tokenFromCookie == "" {
 		ctx.AbortWithStatus(http.StatusUnauthorized)
