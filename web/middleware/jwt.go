@@ -62,13 +62,13 @@ func (m *JWTMiddlewareBuilder) CheckCompetition() gin.HandlerFunc {
 				logger.Error(err),
 				logger.Bool("token==nil", token == nil),
 			)
-			ctx.AbortWithStatus(http.StatusUnauthorized)
+			ctx.AbortWithStatus(http.StatusForbidden)
 			return
 		}
 
 		if err = m.CheckSession(ctx, uc.Ssid); err != nil {
 			m.log.ErrorContext(ctx, "CheckCompetition failed", logger.Error(err))
-			ctx.AbortWithStatus(http.StatusUnauthorized)
+			ctx.AbortWithStatus(http.StatusForbidden)
 			return
 		}
 

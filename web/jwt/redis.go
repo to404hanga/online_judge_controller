@@ -66,7 +66,7 @@ func (h *RedisJWTHandler) ExtractToken(ctx *gin.Context) string {
 	// 如果 Header 中没有，尝试从 Cookie 中提取
 	tokenFromCookie, err := ctx.Cookie(constants.HeaderLoginTokenKey)
 	if err != nil || tokenFromCookie == "" {
-		ctx.AbortWithStatus(http.StatusUnauthorized)
+		ctx.AbortWithStatus(http.StatusForbidden)
 		return ""
 	}
 
