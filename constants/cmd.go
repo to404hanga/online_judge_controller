@@ -26,6 +26,7 @@ const (
 	InitRankingPath                     = "/InitRanking"                     // 初始化比赛排名
 	UpdateScorePath                     = "/UpdateScore"                     // 更新比赛用户分数, 仅内部测试用, 后续 release 版本移除
 	GetCompetitionListPath              = "/GetCompetitionList"              // 获取比赛列表
+	GetCompetitionPath                  = "/GetCompetition"                  // 获取比赛
 	UserGetCompetitionListPath          = "/UserGetCompetitionList"          // 用户获取比赛列表
 	GetCompetitionProblemListPath       = "/GetCompetitionProblemList"       // 获取比赛题目列表
 )

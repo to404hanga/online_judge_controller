@@ -22,16 +22,18 @@ import (
 type CompetitionHandler struct {
 	competitionSvc service.CompetitionService
 	rankingSvc     service.RankingService
+	userSvc        service.UserService
 	jwtHandler     jwt.Handler
 	log            loggerv2.Logger
 }
 
 var _ Handler = (*CompetitionHandler)(nil)
 
-func NewCompetitionHandler(competitionSvc service.CompetitionService, rankingSvc service.RankingService, jwtHandler jwt.Handler, log loggerv2.Logger) *CompetitionHandler {
+func NewCompetitionHandler(competitionSvc service.CompetitionService, rankingSvc service.RankingService, userSvc service.UserService, jwtHandler jwt.Handler, log loggerv2.Logger) *CompetitionHandler {
 	return &CompetitionHandler{
 		competitionSvc: competitionSvc,
 		rankingSvc:     rankingSvc,
+		userSvc:        userSvc,
 		jwtHandler:     jwtHandler,
 		log:            log,
 	}
@@ -55,6 +57,7 @@ func (h *CompetitionHandler) Register(r *gin.Engine) {
 	// TODO: 增加用户获取比赛列表接口
 	r.GET(constants.UserGetCompetitionListPath, gintool.WrapHandler(h.UserGetCompetitionList, h.log))
 	r.GET(constants.GetCompetitionProblemListPath, gintool.WrapHandler(h.GetCompetitionProblemList, h.log))
+	r.GET(constants.GetCompetitionPath, gintool.WrapHandler(h.GetCompetition, h.log))
 }
 
 func (h *CompetitionHandler) CreateCompetition(c *gin.Context, param *model.CreateCompetitionParam) {
@@ -540,5 +543,47 @@ func (h *CompetitionHandler) GetCompetitionProblemList(c *gin.Context, param *mo
 		Code:    http.StatusOK,
 		Message: "success",
 		Data:    problemList,
+	})
+}
+
+func (h *CompetitionHandler) GetCompetition(c *gin.Context, param *model.GetCompetitionParam) {
+	ctx := loggerv2.ContextWithFields(c.Request.Context(), logger.Uint64("competition_id", param.CompetitionID))
+	h.log.DebugContext(ctx, "GetCompetition param")
+
+	competition, err := h.competitionSvc.GetCompetition(ctx, param.CompetitionID)
+	if err != nil {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusInternalServerError,
+			Message: fmt.Sprintf("GetCompetition failed: %s", err.Error()),
+		})
+		h.log.ErrorContext(ctx, "GetCompetition failed", logger.Error(err))
+		return
+	}
+	creator, err := h.userSvc.GetAdminByID(ctx, competition.CreatorID)
+	if err != nil {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusInternalServerError,
+			Message: fmt.Sprintf("GetCompetition failed: %s", err.Error()),
+		})
+		h.log.ErrorContext(ctx, "GetCompetition failed", logger.Error(err))
+		return
+	}
+	updater, err := h.userSvc.GetAdminByID(ctx, competition.UpdaterID)
+	if err != nil {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusInternalServerError,
+			Message: fmt.Sprintf("GetCompetition failed: %s", err.Error()),
+		})
+		h.log.ErrorContext(ctx, "GetCompetition failed", logger.Error(err))
+		return
+	}
+	gintool.GinResponse(c, &gintool.Response{
+		Code:    http.StatusOK,
+		Message: "success",
+		Data: model.GetCompetitionResponse{
+			Competition:     competition,
+			CreatorRealname: creator.Realname,
+			UpdaterRealname: updater.Realname,
+		},
 	})
 }

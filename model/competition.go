@@ -143,3 +143,15 @@ type GetCompetitionProblemListParam struct {
 
 	CompetitionID uint64 `form:"competition_id" binding:"required"`
 }
+
+type GetCompetitionParam struct {
+	CommonParam `json:"-"`
+
+	CompetitionID uint64 `form:"competition_id" binding:"required"`
+}
+
+type GetCompetitionResponse struct {
+	*ojmodel.Competition `json:",inline"`
+	CreatorRealname      string `json:"creator_realname"`
+	UpdaterRealname      string `json:"updater_realname"`
+}
