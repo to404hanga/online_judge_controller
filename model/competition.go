@@ -92,6 +92,7 @@ type GetCompetitionListParam struct {
 	OrderBy string                     `form:"order_by" binding:"omitempty,oneof=id start_time end_time"`
 	Name    string                     `form:"name"`
 	Status  *ojmodel.CompetitionStatus `form:"status" binding:"omitempty,oneof=0 1 2"`
+	Phase   *CompetitionPhase          `form:"phase" binding:"omitempty,oneof=0 1 2"` // 比赛进行阶段，0：未开始，1：进行中，2：已结束
 
 	Page     int `form:"page" binding:"required,min=1"`
 	PageSize int `form:"page_size" binding:"required,min=10,max=100"`
@@ -102,4 +103,37 @@ type GetCompetitionListResponse struct {
 	Total    int                   `json:"total"`
 	Page     int                   `json:"page"`
 	PageSize int                   `json:"page_size"`
+}
+
+type UserGetCompetitionListParam struct {
+	CommonParam `json:"-"`
+
+	Desc    bool              `form:"desc"`
+	OrderBy string            `form:"order_by" binding:"omitempty,oneof=id start_time end_time"`
+	Name    string            `form:"name"`
+	Phase   *CompetitionPhase `form:"phase" binding:"omitempty,oneof=0 1 2"` // 比赛进行阶段，0：未开始，1：进行中，2：已结束
+
+	Page     int `form:"page" binding:"required,min=1"`
+	PageSize int `form:"page_size" binding:"required,min=10,max=100"`
+}
+
+type CompetitionPhase int8
+
+const (
+	CompetitionPhaseNotStarted CompetitionPhase = iota // 未开始
+	CompetitionPhaseOngoing                            // 进行中
+	CompetitionPhaseEnded                              // 已结束
+)
+
+func (p *CompetitionPhase) Int8() int8 {
+	switch *p {
+	case CompetitionPhaseNotStarted:
+		return 0
+	case CompetitionPhaseOngoing:
+		return 1
+	case CompetitionPhaseEnded:
+		return 2
+	default:
+		return 0
+	}
 }

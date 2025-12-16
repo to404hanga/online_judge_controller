@@ -39,7 +39,7 @@ type CompetitionService interface {
 	// GetCompetition 获取比赛信息
 	GetCompetition(ctx context.Context, competitionID uint64) (*ojmodel.Competition, error)
 	// GetCompetitionList 获取比赛列表
-	GetCompetitionList(ctx context.Context, param *model.GetCompetitionListParam) ([]ojmodel.Competition, int, error)
+	GetCompetitionList(ctx context.Context, desc bool, orderBy, name string, status *ojmodel.CompetitionStatus, phase *model.CompetitionPhase, page, pageSize int) ([]ojmodel.Competition, int, error)
 }
 
 const (
@@ -518,16 +518,29 @@ func (s *CompetitionServiceImpl) GetCompetition(ctx context.Context, competition
 	return &competition, nil
 }
 
-func (s *CompetitionServiceImpl) GetCompetitionList(ctx context.Context, param *model.GetCompetitionListParam) ([]ojmodel.Competition, int, error) {
+func (s *CompetitionServiceImpl) GetCompetitionList(ctx context.Context, desc bool, orderBy, name string, status *ojmodel.CompetitionStatus, phase *model.CompetitionPhase, page, pageSize int) ([]ojmodel.Competition, int, error) {
 	var competitions []ojmodel.Competition
 	var total int64
 
 	query := s.db.WithContext(ctx).Model(&ojmodel.Competition{})
-	if param.Status != nil {
-		query = query.Where("status = ?", *param.Status)
+	if status != nil {
+		query = query.Where("status = ?", *status)
 	}
-	if param.Name != "" {
-		query = query.Where("name LIKE ?", "%"+param.Name+"%")
+	if name != "" {
+		query = query.Where("name LIKE ?", "%"+name+"%")
+	}
+	if phase != nil {
+		now := time.Now()
+		switch *phase {
+		case model.CompetitionPhaseNotStarted:
+			query = query.Where("start_time > ?", now)
+		case model.CompetitionPhaseOngoing:
+			query = query.Where("start_time <= ? AND end_time >= ?", now, now)
+		case model.CompetitionPhaseEnded:
+			query = query.Where("end_time < ?", now)
+		default:
+			return nil, 0, fmt.Errorf("GetCompetitionList: unknown competition phase: %v", *phase)
+		}
 	}
 
 	err := query.Count(&total).Error
@@ -535,16 +548,12 @@ func (s *CompetitionServiceImpl) GetCompetitionList(ctx context.Context, param *
 		return nil, 0, fmt.Errorf("GetCompetitionList: failed to count competition: %w", err)
 	}
 
-	orderBy := "id"
-	if param.OrderBy != "" {
-		orderBy = param.OrderBy
-	}
-	if param.Desc {
+	if desc {
 		orderBy += " DESC"
 	}
 	err = query.Order(orderBy).
-		Offset((param.Page - 1) * param.PageSize).
-		Limit(param.PageSize).
+		Offset((page - 1) * pageSize).
+		Limit(pageSize).
 		Find(&competitions).Error
 	if err != nil {
 		return nil, 0, fmt.Errorf("GetCompetitionList: failed to select competition: %w", err)

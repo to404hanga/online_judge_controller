@@ -10,6 +10,7 @@ import (
 	"github.com/to404hanga/online_judge_controller/constants"
 	"github.com/to404hanga/online_judge_controller/model"
 	"github.com/to404hanga/online_judge_controller/pkg/gintool"
+	"github.com/to404hanga/online_judge_controller/pkg/pointer"
 	"github.com/to404hanga/online_judge_controller/service"
 	"github.com/to404hanga/online_judge_controller/service/exporter/factory"
 	"github.com/to404hanga/online_judge_controller/web/jwt"
@@ -52,6 +53,7 @@ func (h *CompetitionHandler) Register(r *gin.Engine) {
 	r.GET(constants.GetCompetitionListPath, gintool.WrapHandler(h.GetCompetitionList, h.log))
 	// TODO: 增加用户获取比赛题目列表以及获取比赛题目详情接口
 	// TODO: 增加用户获取比赛列表接口
+	r.GET(constants.UserGetCompetitionListPath, gintool.WrapHandler(h.UserGetCompetitionList, h.log))
 }
 
 func (h *CompetitionHandler) CreateCompetition(c *gin.Context, param *model.CreateCompetitionParam) {
@@ -420,7 +422,6 @@ func (h *CompetitionHandler) UpdateScore(c *gin.Context, param *model.UpdateScor
 func (h *CompetitionHandler) GetCompetitionList(c *gin.Context, param *model.GetCompetitionListParam) {
 	fields := []logger.Field{
 		logger.Bool("desc", param.Desc),
-		logger.String("order_by", param.OrderBy),
 		logger.Int("page", param.Page),
 		logger.Int("page_size", param.PageSize),
 	}
@@ -430,16 +431,79 @@ func (h *CompetitionHandler) GetCompetitionList(c *gin.Context, param *model.Get
 	if param.Name != "" {
 		fields = append(fields, logger.String("name", param.Name))
 	}
+	if param.Phase != nil {
+		fields = append(fields, logger.Int8("phase", param.Phase.Int8()))
+	}
+	orderBy := "id"
+	if param.OrderBy != "" {
+		orderBy = param.OrderBy
+	}
+	fields = append(fields, logger.String("order_by", orderBy))
 	ctx := loggerv2.ContextWithFields(c.Request.Context(), fields...)
 	h.log.DebugContext(ctx, "GetCompetitionList param")
 
-	competitionList, total, err := h.competitionSvc.GetCompetitionList(ctx, param)
+	competitionList, total, err := h.competitionSvc.GetCompetitionList(ctx,
+		param.Desc,
+		orderBy,
+		param.Name,
+		param.Status,
+		param.Phase,
+		param.Page,
+		param.PageSize)
 	if err != nil {
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,
 			Message: fmt.Sprintf("GetCompetitionList failed: %s", err.Error()),
 		})
 		h.log.ErrorContext(ctx, "GetCompetitionList failed", logger.Error(err))
+		return
+	}
+	gintool.GinResponse(c, &gintool.Response{
+		Code:    http.StatusOK,
+		Message: "success",
+		Data: model.GetCompetitionListResponse{
+			List:     competitionList,
+			Total:    total,
+			Page:     param.Page,
+			PageSize: param.PageSize,
+		},
+	})
+}
+
+func (h *CompetitionHandler) UserGetCompetitionList(c *gin.Context, param *model.UserGetCompetitionListParam) {
+	fields := []logger.Field{
+		logger.Bool("desc", param.Desc),
+		logger.Int("page", param.Page),
+		logger.Int("page_size", param.PageSize),
+	}
+	if param.Name != "" {
+		fields = append(fields, logger.String("name", param.Name))
+	}
+	if param.Phase != nil {
+		fields = append(fields, logger.Int8("phase", param.Phase.Int8()))
+	}
+	orderBy := "id"
+	if param.OrderBy != "" {
+		orderBy = param.OrderBy
+	}
+	fields = append(fields, logger.String("order_by", orderBy))
+	ctx := loggerv2.ContextWithFields(c.Request.Context(), fields...)
+	h.log.DebugContext(ctx, "UserGetCompetitionList param")
+
+	competitionList, total, err := h.competitionSvc.GetCompetitionList(ctx,
+		param.Desc,
+		orderBy,
+		param.Name,
+		pointer.ToPtr(ojmodel.CompetitionStatusPublished),
+		param.Phase,
+		param.Page,
+		param.PageSize)
+	if err != nil {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusInternalServerError,
+			Message: fmt.Sprintf("UserGetCompetitionList failed: %s", err.Error()),
+		})
+		h.log.ErrorContext(ctx, "UserGetCompetitionList failed", logger.Error(err))
 		return
 	}
 	gintool.GinResponse(c, &gintool.Response{
