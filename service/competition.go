@@ -531,7 +531,15 @@ func (s *CompetitionServiceImpl) GetCompetitionList(ctx context.Context, param *
 	if err != nil {
 		return nil, 0, fmt.Errorf("GetCompetitionList: failed to count competition: %w", err)
 	}
-	err = query.Order("id DESC").
+
+	orderBy := "id"
+	if param.OrderBy != "" {
+		orderBy = param.OrderBy
+	}
+	if param.Desc {
+		orderBy += " DESC"
+	}
+	err = query.Order(orderBy).
 		Offset((param.Page - 1) * param.PageSize).
 		Limit(param.PageSize).
 		Find(&competitions).Error

@@ -50,7 +50,8 @@ func (h *CompetitionHandler) Register(r *gin.Engine) {
 	r.POST(constants.InitRankingPath, gintool.WrapHandler(h.InitRanking, h.log))
 	r.PUT(constants.UpdateScorePath, gintool.WrapHandler(h.UpdateScore, h.log)) // 仅内部测试用, 后续 release 版本移除
 	r.GET(constants.GetCompetitionListPath, gintool.WrapHandler(h.GetCompetitionList, h.log))
-	// TODO: 增加获取比赛题目列表以及获取比赛题目详情接口
+	// TODO: 增加用户获取比赛题目列表以及获取比赛题目详情接口
+	// TODO: 增加用户获取比赛列表接口
 }
 
 func (h *CompetitionHandler) CreateCompetition(c *gin.Context, param *model.CreateCompetitionParam) {
@@ -417,9 +418,16 @@ func (h *CompetitionHandler) UpdateScore(c *gin.Context, param *model.UpdateScor
 }
 
 func (h *CompetitionHandler) GetCompetitionList(c *gin.Context, param *model.GetCompetitionListParam) {
-	ctx := loggerv2.ContextWithFields(c.Request.Context(),
+	fields := []logger.Field{
+		logger.Bool("desc", param.Desc),
+		logger.String("order_by", param.OrderBy),
 		logger.Int("page", param.Page),
-		logger.Int("page_size", param.PageSize))
+		logger.Int("page_size", param.PageSize),
+	}
+	if param.Status != nil {
+		fields = append(fields, logger.Int8("status", param.Status.Int8()))
+	}
+	ctx := loggerv2.ContextWithFields(c.Request.Context(), fields...)
 
 	competitionList, total, err := h.competitionSvc.GetCompetitionList(ctx, param)
 	if err != nil {

@@ -31,13 +31,11 @@ type UpdateProblemParam struct {
 type GetProblemListParam struct {
 	CommonParam `json:"-"`
 
-	Desc        bool   `form:"desc"`
-	OrderBy     string `form:"order_by" binding:"omitempty,oneof=id created_at updated_at"`
-	Title       string `form:"title"`
-	Status      *int8  `form:"status" binding:"omitempty,oneof=0 1 2"`
-	Visible     *int8  `form:"visible" binding:"omitempty,oneof=0 1"`
-	TimeLimit   *int   `form:"time_limit"`
-	MemoryLimit *int   `form:"memory_limit"`
+	Desc    bool   `form:"desc"`
+	OrderBy string `form:"order_by" binding:"omitempty,oneof=id created_at updated_at"`
+	Title   string `form:"title"`
+	Status  *int8  `form:"status" binding:"omitempty,oneof=0 1 2"`
+	Visible *int8  `form:"visible" binding:"omitempty,oneof=0 1"`
 
 	Page     int `form:"page" binding:"required,min=1"`
 	PageSize int `form:"page_size" binding:"required,min=10,max=100"`

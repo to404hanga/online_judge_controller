@@ -3,6 +3,7 @@ package model
 import (
 	"time"
 
+	ojmodel "github.com/to404hanga/online_judge_common/model"
 	"github.com/to404hanga/online_judge_controller/service/exporter/factory"
 )
 
@@ -82,4 +83,22 @@ type ExportCompetitionDataParam struct {
 
 	CompetitionID uint64          `json:"competition_id" binding:"required"`
 	ExportType    ModelExportType `json:"export_type" binding:"required,oneof=1 2 3"`
+}
+
+type GetCompetitionListParam struct {
+	CommonParam `json:"-"`
+
+	Desc    bool                       `form:"desc"`
+	OrderBy string                     `form:"order_by" binding:"omitempty,oneof=id start_time end_time created_at updated_at"`
+	Status  *ojmodel.CompetitionStatus `form:"status" binding:"omitempty,oneof=0 1 2"`
+
+	Page     int `form:"page" binding:"required,min=1"`
+	PageSize int `form:"page_size" binding:"required,min=10,max=100"`
+}
+
+type GetCompetitionListResponse struct {
+	List     []ojmodel.Competition `json:"list"`
+	Total    int                   `json:"total"`
+	Page     int                   `json:"page"`
+	PageSize int                   `json:"page_size"`
 }

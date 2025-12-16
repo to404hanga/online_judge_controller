@@ -130,12 +130,6 @@ func (h *ProblemHandler) GetProblemList(c *gin.Context, param *model.GetProblemL
 	if param.Visible != nil {
 		fields = append(fields, logger.Int8("visible", *param.Visible))
 	}
-	if param.TimeLimit != nil {
-		fields = append(fields, logger.Int("time_limit", *param.TimeLimit))
-	}
-	if param.MemoryLimit != nil {
-		fields = append(fields, logger.Int("memory_limit", *param.MemoryLimit))
-	}
 
 	ctx := loggerv2.ContextWithFields(c.Request.Context(), fields...)
 

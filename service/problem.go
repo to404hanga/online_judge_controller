@@ -139,12 +139,6 @@ func (s *ProblemServiceImpl) GetProblemList(ctx context.Context, param *model.Ge
 	if param.Visible != nil {
 		query = query.Where("visible = ?", *param.Visible)
 	}
-	if param.TimeLimit != nil {
-		query = query.Where("time_limit = ?", *param.TimeLimit)
-	}
-	if param.MemoryLimit != nil {
-		query = query.Where("memory_limit = ?", *param.MemoryLimit)
-	}
 	orderBy := "id"
 	if param.OrderBy != "" {
 		orderBy = param.OrderBy
