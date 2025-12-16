@@ -526,6 +526,9 @@ func (s *CompetitionServiceImpl) GetCompetitionList(ctx context.Context, param *
 	if param.Status != nil {
 		query = query.Where("status = ?", *param.Status)
 	}
+	if param.Name != "" {
+		query = query.Where("name LIKE ?", "%"+param.Name+"%")
+	}
 
 	err := query.Count(&total).Error
 	if err != nil {

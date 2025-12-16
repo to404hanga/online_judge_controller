@@ -90,6 +90,7 @@ type GetCompetitionListParam struct {
 
 	Desc    bool                       `form:"desc"`
 	OrderBy string                     `form:"order_by" binding:"omitempty,oneof=id start_time end_time created_at updated_at"`
+	Name    string                     `form:"name"`
 	Status  *ojmodel.CompetitionStatus `form:"status" binding:"omitempty,oneof=0 1 2"`
 
 	Page     int `form:"page" binding:"required,min=1"`
