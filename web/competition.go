@@ -51,9 +51,10 @@ func (h *CompetitionHandler) Register(r *gin.Engine) {
 	r.POST(constants.InitRankingPath, gintool.WrapHandler(h.InitRanking, h.log))
 	r.PUT(constants.UpdateScorePath, gintool.WrapHandler(h.UpdateScore, h.log)) // 仅内部测试用, 后续 release 版本移除
 	r.GET(constants.GetCompetitionListPath, gintool.WrapHandler(h.GetCompetitionList, h.log))
-	// TODO: 增加用户获取比赛题目列表以及获取比赛题目详情接口
+	// TODO: 增加用户获取比赛题目列表接口
 	// TODO: 增加用户获取比赛列表接口
 	r.GET(constants.UserGetCompetitionListPath, gintool.WrapHandler(h.UserGetCompetitionList, h.log))
+	r.GET(constants.GetCompetitionProblemListPath, gintool.WrapHandler(h.GetCompetitionProblemList, h.log))
 }
 
 func (h *CompetitionHandler) CreateCompetition(c *gin.Context, param *model.CreateCompetitionParam) {
@@ -322,6 +323,7 @@ func (h *CompetitionHandler) GetCompetitionFastestSolverList(c *gin.Context, par
 		logger.Uint64("competition_id", param.CompetitionID))
 
 	if len(param.ProblemIDs) == 0 {
+		// TODO: 实现用户获取比赛题目接口后将其覆盖
 		problemList, err := h.competitionSvc.GetCompetitionProblemList(ctx, param.CompetitionID)
 		if err != nil {
 			gintool.GinResponse(c, &gintool.Response{
@@ -515,5 +517,28 @@ func (h *CompetitionHandler) UserGetCompetitionList(c *gin.Context, param *model
 			Page:     param.Page,
 			PageSize: param.PageSize,
 		},
+	})
+}
+
+func (h *CompetitionHandler) GetCompetitionProblemList(c *gin.Context, param *model.GetCompetitionProblemListParam) {
+	fields := []logger.Field{
+		logger.Uint64("competition_id", param.CompetitionID),
+	}
+	ctx := loggerv2.ContextWithFields(c.Request.Context(), fields...)
+	h.log.DebugContext(ctx, "GetCompetitionProblemList param")
+
+	problemList, err := h.competitionSvc.GetCompetitionProblemList(ctx, param.CompetitionID)
+	if err != nil {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusInternalServerError,
+			Message: fmt.Sprintf("GetCompetitionProblemList failed: %s", err.Error()),
+		})
+		h.log.ErrorContext(ctx, "GetCompetitionProblemList failed", logger.Error(err))
+		return
+	}
+	gintool.GinResponse(c, &gintool.Response{
+		Code:    http.StatusOK,
+		Message: "success",
+		Data:    problemList,
 	})
 }

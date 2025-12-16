@@ -13,21 +13,21 @@ const (
 )
 
 const (
-	CreateCompetitionPath                         = "/CreateCompetition"                         // 创建比赛
-	UpdateCompetitionPath                         = "/UpdateCompetition"                         // 更新比赛
-	AddCompetitionProblemPath                     = "/AddCompetitionProblem"                     // 添加比赛题目
-	RemoveCompetitionProblemPath                  = "/RemoveCompetitionProblem"                  // 删除比赛题目
-	EnableCompetitionProblemPath                  = "/EnableCompetitionProblem"                  // 启用比赛题目
-	DisableCompetitionProblemPath                 = "/DisableCompetitionProblem"                 // 禁用比赛题目
-	StartCompetitionPath                          = "/StartCompetition"                          // 开始比赛
-	GetCompetitionProblemListWithPresignedURLPath = "/GetCompetitionProblemListWithPresignedURL" // 获取比赛题目列表（带预签名 URL）
-	GetCompetitionRankingListPath                 = "/GetCompetitionRankingList"                 // 获取比赛排名列表
-	GetCompetitionFastestSolverListPath           = "/GetCompetitionFastestSolverList"           // 获取比赛各个题目最快通过提交的用户列表
-	ExportCompetitionDataPath                     = "/ExportCompetitionData"                     // 导出比赛数据
-	InitRankingPath                               = "/InitRanking"                               // 初始化比赛排名
-	UpdateScorePath                               = "/UpdateScore"                               // 更新比赛用户分数, 仅内部测试用, 后续 release 版本移除
-	GetCompetitionListPath                        = "/GetCompetitionList"                        // 获取比赛列表
-	UserGetCompetitionListPath                    = "/UserGetCompetitionList"                    // 用户获取比赛列表
+	CreateCompetitionPath               = "/CreateCompetition"               // 创建比赛
+	UpdateCompetitionPath               = "/UpdateCompetition"               // 更新比赛
+	AddCompetitionProblemPath           = "/AddCompetitionProblem"           // 添加比赛题目
+	RemoveCompetitionProblemPath        = "/RemoveCompetitionProblem"        // 删除比赛题目
+	EnableCompetitionProblemPath        = "/EnableCompetitionProblem"        // 启用比赛题目
+	DisableCompetitionProblemPath       = "/DisableCompetitionProblem"       // 禁用比赛题目
+	StartCompetitionPath                = "/StartCompetition"                // 开始比赛
+	GetCompetitionRankingListPath       = "/GetCompetitionRankingList"       // 获取比赛排名列表
+	GetCompetitionFastestSolverListPath = "/GetCompetitionFastestSolverList" // 获取比赛各个题目最快通过提交的用户列表
+	ExportCompetitionDataPath           = "/ExportCompetitionData"           // 导出比赛数据
+	InitRankingPath                     = "/InitRanking"                     // 初始化比赛排名
+	UpdateScorePath                     = "/UpdateScore"                     // 更新比赛用户分数, 仅内部测试用, 后续 release 版本移除
+	GetCompetitionListPath              = "/GetCompetitionList"              // 获取比赛列表
+	UserGetCompetitionListPath          = "/UserGetCompetitionList"          // 用户获取比赛列表
+	GetCompetitionProblemListPath       = "/GetCompetitionProblemList"       // 获取比赛题目列表
 )
 
 const (

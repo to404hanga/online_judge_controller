@@ -137,3 +137,9 @@ func (p *CompetitionPhase) Int8() int8 {
 		return 0
 	}
 }
+
+type GetCompetitionProblemListParam struct {
+	CommonParam `json:"-"`
+
+	CompetitionID uint64 `form:"competition_id" binding:"required"`
+}

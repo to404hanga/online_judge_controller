@@ -248,60 +248,12 @@ func (s *CompetitionServiceImpl) DisableCompetitionProblem(ctx context.Context, 
 
 // GetCompetitionProblemList 获取比赛题目列表
 func (s *CompetitionServiceImpl) GetCompetitionProblemList(ctx context.Context, competitionID uint64) ([]ojmodel.CompetitionProblem, error) {
-	competitionProblems := make([]ojmodel.CompetitionProblem, 0, 10)
-
-	competitionProblemsBytes, err := s.rdb.Get(ctx, fmt.Sprintf(competitionProblemListKey, competitionID)).Bytes()
-	if err == nil {
-		if err = json.Unmarshal(competitionProblemsBytes, &competitionProblems); err == nil {
-			return competitionProblems, nil
-		}
-	}
-	s.log.WarnContext(ctx, "GetCompetitionProblemList from redis failed", logger.Error(err))
-
-	// 分布式锁，防止缓存击穿
-	lockKey := fmt.Sprintf("lock:competition:%d:problem:list", competitionID)
-	// 过期时间设置为 10s
-	ok, err := s.rdb.SetNX(ctx, lockKey, "locked", 10*time.Second).Result()
-	if err != nil {
-		return nil, fmt.Errorf("GetCompetitionProblemList failed to set lock: %w", err)
-	}
-
-	// 没有获得锁，说明有其他人在操作
-	if !ok {
-		// 等待 1s 后重试
-		time.Sleep(1 * time.Second)
-		return s.GetCompetitionProblemList(ctx, competitionID)
-	}
-	defer func() {
-		retryCtx := context.WithValue(context.Background(), loggerv2.FieldsKey, ctx.Value(loggerv2.FieldsKey))
-		retry.Do(retryCtx, func() error {
-			return s.rdb.Del(retryCtx, lockKey).Err()
-		}, retry.WithAsync(true), retry.WithCallback(func(err error) {
-			s.log.ErrorContext(retryCtx, "GetCompetitionProblemList: failed to delete lock", logger.Error(err))
-		}))
-	}()
-
-	// 获得锁后, 再次尝试从 redis 中获取
-	competitionProblemsBytes, err = s.rdb.Get(ctx, fmt.Sprintf(competitionProblemListKey, competitionID)).Bytes()
-	if err == nil {
-		if err = json.Unmarshal(competitionProblemsBytes, &competitionProblems); err == nil {
-			return competitionProblems, nil
-		}
-	}
-	s.log.WarnContext(ctx, "GetCompetitionProblemList from redis recheck failed", logger.Error(err))
-
-	err = s.db.WithContext(ctx).
+	var competitionProblems []ojmodel.CompetitionProblem
+	err := s.db.WithContext(ctx).
 		Where("competition_id = ?", competitionID).
 		Find(&competitionProblems).Error
 	if err != nil {
 		return nil, fmt.Errorf("GetCompetitionProblemList failed at select from competition_problem: %w", err)
-	}
-
-	// 存入 redis
-	competitionProblemsBytes, err = json.Marshal(competitionProblems)
-	if err == nil {
-		// 过期时间设置为 8h
-		s.rdb.Set(ctx, fmt.Sprintf(competitionProblemListKey, competitionID), competitionProblemsBytes, 8*time.Hour)
 	}
 	return competitionProblems, nil
 }
