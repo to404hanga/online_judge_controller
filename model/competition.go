@@ -89,7 +89,7 @@ type GetCompetitionListParam struct {
 	CommonParam `json:"-"`
 
 	Desc    bool                       `form:"desc"`
-	OrderBy string                     `form:"order_by" binding:"omitempty,oneof=id start_time end_time created_at updated_at"`
+	OrderBy string                     `form:"order_by" binding:"omitempty,oneof=id start_time end_time"`
 	Name    string                     `form:"name"`
 	Status  *ojmodel.CompetitionStatus `form:"status" binding:"omitempty,oneof=0 1 2"`
 

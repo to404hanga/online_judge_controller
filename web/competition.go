@@ -427,7 +427,11 @@ func (h *CompetitionHandler) GetCompetitionList(c *gin.Context, param *model.Get
 	if param.Status != nil {
 		fields = append(fields, logger.Int8("status", param.Status.Int8()))
 	}
+	if param.Name != "" {
+		fields = append(fields, logger.String("name", param.Name))
+	}
 	ctx := loggerv2.ContextWithFields(c.Request.Context(), fields...)
+	h.log.DebugContext(ctx, "GetCompetitionList param")
 
 	competitionList, total, err := h.competitionSvc.GetCompetitionList(ctx, param)
 	if err != nil {
