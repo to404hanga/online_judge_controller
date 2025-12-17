@@ -132,6 +132,7 @@ func (h *ProblemHandler) GetProblemList(c *gin.Context, param *model.GetProblemL
 	}
 
 	ctx := loggerv2.ContextWithFields(c.Request.Context(), fields...)
+	h.log.DebugContext(ctx, "GetProblemList param")
 
 	problems, total, err := h.problemSvc.GetProblemList(ctx, param)
 	if err != nil {
