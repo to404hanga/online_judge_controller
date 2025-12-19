@@ -220,7 +220,7 @@ func (s *UserServiceImpl) UpdateUser(ctx context.Context, param *model.UpdateUse
 	}
 
 	if revoke {
-		retryCtx := context.WithValue(ctx, loggerv2.FieldsKey, ctx.Value(loggerv2.FieldsKey))
+		retryCtx := context.WithValue(context.Background(), loggerv2.FieldsKey, ctx.Value(loggerv2.FieldsKey))
 		retry.Do(retryCtx, func() error {
 			return s.rdb.Incr(retryCtx, fmt.Sprintf(tokenVersionKey, param.UserID)).Err()
 		}, retry.WithAsync(true), retry.WithCallback(func(err error) {
