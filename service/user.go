@@ -192,6 +192,8 @@ func (s *UserServiceImpl) DeleteUserByID(ctx context.Context, userID uint64) err
 	if err != nil {
 		return fmt.Errorf("DeleteUserByID failed: %w", err)
 	}
+	retryCtx := context.WithValue(context.Background(), loggerv2.FieldsKey, ctx.Value(loggerv2.FieldsKey))
+	s.revokeUserToken(retryCtx, userID)
 	return nil
 }
 
@@ -222,16 +224,20 @@ func (s *UserServiceImpl) UpdateUser(ctx context.Context, param *model.UpdateUse
 	}
 
 	if revoke {
-		key := fmt.Sprintf(tokenVersionKey, param.UserID)
 		retryCtx := context.WithValue(context.Background(), loggerv2.FieldsKey, ctx.Value(loggerv2.FieldsKey))
-		retry.Do(retryCtx, func() error {
-			return s.rdb.Eval(retryCtx, incrTokenVersionScript, []string{key}).Err()
-		}, retry.WithAsync(true), retry.WithCallback(func(err error) {
-			if err != nil {
-				s.log.ErrorContext(retryCtx, "UpdateUser failed", logger.Error(err))
-			}
-		}))
+		s.revokeUserToken(retryCtx, param.UserID)
 	}
 
 	return nil
+}
+
+func (s *UserServiceImpl) revokeUserToken(ctx context.Context, userID uint64) {
+	key := fmt.Sprintf(tokenVersionKey, userID)
+	retry.Do(ctx, func() error {
+		return s.rdb.Eval(ctx, incrTokenVersionScript, []string{key}).Err()
+	}, retry.WithAsync(true), retry.WithCallback(func(err error) {
+		if err != nil {
+			s.log.ErrorContext(ctx, "RevokeUserToken failed", logger.Error(err))
+		}
+	}))
 }
