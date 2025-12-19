@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"fmt"
 
@@ -17,9 +18,10 @@ import (
 	"gorm.io/gorm"
 )
 
-const (
-	tokenVersionKey = "users:token_version:%d"
-)
+const tokenVersionKey = "users:token_version:%d"
+
+//go:embed lua/incr_token_version.lua
+var incrTokenVersionScript string
 
 type UserService interface {
 	// GetRoleByID 获取用户角色
@@ -220,9 +222,10 @@ func (s *UserServiceImpl) UpdateUser(ctx context.Context, param *model.UpdateUse
 	}
 
 	if revoke {
+		key := fmt.Sprintf(tokenVersionKey, param.UserID)
 		retryCtx := context.WithValue(context.Background(), loggerv2.FieldsKey, ctx.Value(loggerv2.FieldsKey))
 		retry.Do(retryCtx, func() error {
-			return s.rdb.Incr(retryCtx, fmt.Sprintf(tokenVersionKey, param.UserID)).Err()
+			return s.rdb.Eval(retryCtx, incrTokenVersionScript, []string{key}).Err()
 		}, retry.WithAsync(true), retry.WithCallback(func(err error) {
 			if err != nil {
 				s.log.ErrorContext(retryCtx, "UpdateUser failed", logger.Error(err))
