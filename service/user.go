@@ -14,10 +14,13 @@ import (
 	"github.com/to404hanga/pkg404/gotools/transform"
 	"github.com/to404hanga/pkg404/logger"
 	loggerv2 "github.com/to404hanga/pkg404/logger/v2"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
 const tokenVersionKey = "users:token_version:%d"
+
+var defaultPassword = []byte("123456")
 
 //go:embed lua/incr_token_version.lua
 var incrTokenVersionScript string
@@ -41,6 +44,10 @@ type UserService interface {
 	DeleteUserByID(ctx context.Context, userID uint64) error
 	// UpdateUser 更新用户
 	UpdateUser(ctx context.Context, param *model.UpdateUserParam) error
+	// ResetUserPassword 重置用户密码
+	ResetUserPassword(ctx context.Context, userID uint64) error
+	// UpdateUserPassword 更新用户密码
+	UpdateUserPassword(ctx context.Context, userID uint64, password string) (bool, error)
 }
 
 type UserServiceImpl struct {
@@ -231,4 +238,44 @@ func (s *UserServiceImpl) revokeUserToken(ctx context.Context, userID uint64) {
 			s.log.ErrorContext(ctx, "RevokeUserToken failed", logger.Error(err))
 		}
 	}))
+}
+
+func (s *UserServiceImpl) ResetUserPassword(ctx context.Context, userID uint64) error {
+	hash, err := bcrypt.GenerateFromPassword(defaultPassword, bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("ResetUserPassword failed: %w", err)
+	}
+	err = s.db.WithContext(ctx).Model(&ojmodel.User{}).
+		Where("id = ?", userID).
+		Update("password", string(hash)).Error
+	if err != nil {
+		return fmt.Errorf("ResetUserPassword failed: %w", err)
+	}
+	return nil
+}
+
+func (s *UserServiceImpl) UpdateUserPassword(ctx context.Context, userID uint64, password string) (bool, error) {
+	var user ojmodel.User
+	err := s.db.WithContext(ctx).
+		Where("id = ?", userID).
+		Select("password").
+		First(&user).Error
+	if err != nil {
+		return false, fmt.Errorf("CheckUserPassword failed: %w", err)
+	}
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+	if err != nil {
+		return false, nil // 旧密码不匹配
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return true, fmt.Errorf("UpdateUserPassword failed: %w", err)
+	}
+	err = s.db.WithContext(ctx).Model(&ojmodel.User{}).
+		Where("id = ?", userID).
+		Update("password", string(hash)).Error
+	if err != nil {
+		return true, fmt.Errorf("UpdateUserPassword failed: %w", err)
+	}
+	return true, nil
 }

@@ -56,3 +56,17 @@ type UpdateUserParam struct {
 	Realname string              `json:"realname"`                             // 真实姓名
 	Status   *ojmodel.UserStatus `json:"status" binding:"omitempty,oneof=0 1"` // 状态, 0: 正常, 1: 禁用
 }
+
+type ResetPasswordParam struct {
+	CommonParam `json:"-"`
+
+	UserID uint64 `json:"user_id" binding:"required"` // 用户ID
+}
+
+type UpdatePasswordParam struct {
+	CommonParam `json:"-"`
+
+	UserID      uint64 `json:"user_id" binding:"required"`      // 用户ID
+	OldPassword string `json:"old_password" binding:"required"` // 旧密码
+	NewPassword string `json:"new_password" binding:"required"` // 新密码
+}

@@ -43,6 +43,8 @@ func (h *UserHandler) Register(r *gin.Engine) {
 	r.PUT(constants.DisableUsersInCompetitionPath, gintool.WrapHandler(h.DisableUsersInCompetition, h.log))
 	r.DELETE(constants.DeleteUserPath, gintool.WrapHandler(h.DeleteUser, h.log))
 	r.PUT(constants.UpdateUserPath, gintool.WrapHandler(h.UpdateUser, h.log))
+	r.PUT(constants.ResetPasswordPath, gintool.WrapHandler(h.ResetPassword, h.log))
+	r.PUT(constants.UpdatePasswordPath, gintool.WrapHandler(h.UpdatePassword, h.log))
 }
 
 func (h *UserHandler) GetUserList(c *gin.Context, param *model.GetUserListParam) {
@@ -438,6 +440,52 @@ func (h *UserHandler) UpdateUser(c *gin.Context, param *model.UpdateUserParam) {
 			Message: "internal error",
 		})
 		h.log.ErrorContext(ctx, "UpdateUser failed", logger.Error(err))
+		return
+	}
+
+	gintool.GinResponse(c, &gintool.Response{
+		Code:    http.StatusOK,
+		Message: "success",
+	})
+}
+
+func (h *UserHandler) ResetPassword(c *gin.Context, param *model.ResetPasswordParam) {
+	ctx := loggerv2.WithFieldsToContext(c.Request.Context(), logger.Uint64("user_id", param.UserID))
+
+	err := h.userSvc.ResetUserPassword(ctx, param.UserID)
+	if err != nil {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusInternalServerError,
+			Message: "internal error",
+		})
+		h.log.ErrorContext(ctx, "ResetPassword failed", logger.Error(err))
+		return
+	}
+
+	gintool.GinResponse(c, &gintool.Response{
+		Code:    http.StatusOK,
+		Message: "success",
+	})
+}
+
+func (h *UserHandler) UpdatePassword(c *gin.Context, param *model.UpdatePasswordParam) {
+	ctx := loggerv2.WithFieldsToContext(c.Request.Context(), logger.Uint64("user_id", param.UserID))
+
+	oldPasswordMatch, err := h.userSvc.UpdateUserPassword(ctx, param.UserID, param.NewPassword)
+	if err != nil {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusInternalServerError,
+			Message: "internal error",
+		})
+		h.log.ErrorContext(ctx, "UpdatePassword update user password failed", logger.Error(err))
+		return
+	}
+	if !oldPasswordMatch {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusBadRequest,
+			Message: "old password not match",
+		})
+		h.log.ErrorContext(ctx, "UpdatePassword old password not match")
 		return
 	}
 
