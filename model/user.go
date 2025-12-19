@@ -5,8 +5,8 @@ import ojmodel "github.com/to404hanga/online_judge_common/model"
 type GetUserListParam struct {
 	CommonParam `json:"-"`
 
-	OrderBy string `form:"order_by" binding:"omitempty, oneof=id username realname"` // 排序字段
-	Desc    bool   `form:"desc"`                                                     // 是否降序
+	OrderBy string `form:"order_by" binding:"omitempty,oneof=id username realname"` // 排序字段
+	Desc    bool   `form:"desc"`                                                    // 是否降序
 
 	Username string              `form:"username"` // 按用户名查询, 前缀匹配
 	Realname string              `form:"realname"` // 按真实姓名查询, 全模糊匹配
