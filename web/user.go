@@ -44,9 +44,32 @@ func (h *UserHandler) Register(r *gin.Engine) {
 }
 
 func (h *UserHandler) GetUserList(c *gin.Context, param *model.GetUserListParam) {
-	ctx := c.Request.Context()
+	if len(param.OrderBy) == 0 {
+		param.OrderBy = "id"
+	}
+	fields := []logger.Field{
+		logger.String("order_by", param.OrderBy),
+		logger.Bool("desc", param.Desc),
+		logger.Int("page", param.Page),
+		logger.Int("page_size", param.PageSize),
+	}
+	if param.Username != "" {
+		fields = append(fields, logger.String("username", param.Username))
+	}
+	if param.Realname != "" {
+		fields = append(fields, logger.String("realname", param.Realname))
+	}
+	if param.Role != nil {
+		fields = append(fields, logger.Int8("role", param.Role.Int8()))
+	}
+	if param.Status != nil {
+		fields = append(fields, logger.Int8("status", param.Status.Int8()))
+	}
 
-	users, err := h.userSvc.GetUserList(ctx, param)
+	ctx := loggerv2.ContextWithFields(c.Request.Context(), fields...)
+	h.log.DebugContext(ctx, "GetUserList param")
+
+	users, err := h.userSvc.GetUserList(c.Request.Context(), param)
 	if err != nil {
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,

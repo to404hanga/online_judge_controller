@@ -76,17 +76,13 @@ func (s *UserServiceImpl) GetUserList(ctx context.Context, param *model.GetUserL
 		query = query.Where("status = ?", *param.Status)
 	}
 
-	orderBy := "id"
-	if len(param.OrderBy) != 0 {
-		orderBy = param.OrderBy
-	}
+	orderBy := param.OrderBy
 	if param.Desc {
-		query = query.Order(orderBy + " desc")
-	} else {
-		query = query.Order(orderBy + " asc")
+		orderBy += " desc"
 	}
 
-	err := query.Offset((param.Page-1)*param.PageSize).
+	err := query.Order(orderBy).
+		Offset((param.Page-1)*param.PageSize).
 		Limit(param.PageSize).
 		Select("id", "username", "realname", "role", "status", "created_at", "updated_at").
 		Find(&users).Error

@@ -5,13 +5,13 @@ import ojmodel "github.com/to404hanga/online_judge_common/model"
 type GetUserListParam struct {
 	CommonParam `json:"-"`
 
-	OrderBy string `json:"order_by" binding:"omitempty, oneof=id username realname"` // 排序字段
-	Desc    bool   `json:"desc"`                                                     // 是否降序
+	OrderBy string `form:"order_by" binding:"omitempty, oneof=id username realname"` // 排序字段
+	Desc    bool   `form:"desc"`                                                     // 是否降序
 
-	Username string `json:"username"` // 按用户名查询, 前缀匹配
-	Realname string `json:"realname"` // 按真实姓名查询, 全模糊匹配
-	Role     *int8  `json:"role"`     // 按角色查询, 0: 普通用户, 1: 管理员
-	Status   *int8  `json:"status"`   // 按状态查询, 0: 正常, 1: 禁用
+	Username string              `form:"username"` // 按用户名查询, 前缀匹配
+	Realname string              `form:"realname"` // 按真实姓名查询, 全模糊匹配
+	Role     *ojmodel.UserRole   `form:"role"`     // 按角色查询, 0: 普通用户, 1: 管理员
+	Status   *ojmodel.UserStatus `form:"status"`   // 按状态查询, 0: 正常, 1: 禁用
 
 	Page     int `form:"page" binding:"required,min=1"`               // 分页页码
 	PageSize int `form:"page_size" binding:"required,min=10,max=100"` // 分页每页数量
