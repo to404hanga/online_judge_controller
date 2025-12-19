@@ -19,7 +19,7 @@ type GetUserListParam struct {
 
 type GetUserListResponse struct {
 	Total    int            `json:"total"`     // 总记录数
-	List     []ojmodel.User `json:"lsit"`      // 记录列表
+	List     []ojmodel.User `json:"list"`      // 记录列表
 	Page     int            `json:"page"`      // 分页页码
 	PageSize int            `json:"page_size"` // 分页每页数量
 }
