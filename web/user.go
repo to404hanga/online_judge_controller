@@ -41,6 +41,8 @@ func (h *UserHandler) Register(r *gin.Engine) {
 	r.POST(constants.AddUsersToCompetitionPath, gintool.WrapHandler(h.AddUsersToCompetition, h.log))
 	r.PUT(constants.EnableUsersInCompetitionPath, gintool.WrapHandler(h.EnableUsersInCompetition, h.log))
 	r.PUT(constants.DisableUsersInCompetitionPath, gintool.WrapHandler(h.DisableUsersInCompetition, h.log))
+	r.DELETE(constants.DeleteUserPath, gintool.WrapHandler(h.DeleteUser, h.log))
+	r.PUT(constants.UpdateUserPath, gintool.WrapHandler(h.UpdateUser, h.log))
 }
 
 func (h *UserHandler) GetUserList(c *gin.Context, param *model.GetUserListParam) {
@@ -398,6 +400,44 @@ func (h *UserHandler) DisableUsersInCompetition(c *gin.Context, param *model.Com
 			Message: "internal error",
 		})
 		h.log.ErrorContext(ctx, "DisableUsersInCompetition failed", logger.Error(err))
+		return
+	}
+
+	gintool.GinResponse(c, &gintool.Response{
+		Code:    http.StatusOK,
+		Message: "success",
+	})
+}
+
+func (h *UserHandler) DeleteUser(c *gin.Context, param *model.DeleteUserParam) {
+	ctx := loggerv2.WithFieldsToContext(c.Request.Context(), logger.Uint64("user_id", param.UserID))
+
+	err := h.userSvc.DeleteUserByID(ctx, param.UserID)
+	if err != nil {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusInternalServerError,
+			Message: "internal error",
+		})
+		h.log.ErrorContext(ctx, "DeleteUser failed", logger.Error(err))
+		return
+	}
+
+	gintool.GinResponse(c, &gintool.Response{
+		Code:    http.StatusOK,
+		Message: "success",
+	})
+}
+
+func (h *UserHandler) UpdateUser(c *gin.Context, param *model.UpdateUserParam) {
+	ctx := loggerv2.WithFieldsToContext(c.Request.Context(), logger.Uint64("user_id", param.UserID))
+
+	err := h.userSvc.UpdateUser(ctx, param)
+	if err != nil {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusInternalServerError,
+			Message: "internal error",
+		})
+		h.log.ErrorContext(ctx, "UpdateUser failed", logger.Error(err))
 		return
 	}
 

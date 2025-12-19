@@ -38,6 +38,8 @@ const (
 
 const (
 	GetUserListPath               = "/GetUserList"               // 获取用户列表
+	DeleteUserPath                = "/DeleteUser"                // 删除用户
+	UpdateUserPath                = "/UpdateUser"                // 更新用户
 	AddUsersToCompetitionPath     = "/AddUsersToCompetition"     // 添加用户到比赛名单
 	EnableUsersInCompetitionPath  = "/EnableUsersInCompetition"  // 允许用户参加比赛
 	DisableUsersInCompetitionPath = "/DisableUsersInCompetition" // 禁用用户参加比赛

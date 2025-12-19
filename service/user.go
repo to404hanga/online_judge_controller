@@ -5,13 +5,20 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/redis/go-redis/v9"
 	ojmodel "github.com/to404hanga/online_judge_common/model"
 	"github.com/to404hanga/online_judge_controller/model"
 	"github.com/to404hanga/online_judge_controller/pkg/pointer"
+	"github.com/to404hanga/pkg404/gotools/retry"
 	"github.com/to404hanga/pkg404/gotools/transform"
 	"github.com/to404hanga/pkg404/logger"
 	loggerv2 "github.com/to404hanga/pkg404/logger/v2"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
+)
+
+const (
+	tokenVersionKey = "users:token_version:%d"
 )
 
 type UserService interface {
@@ -29,16 +36,22 @@ type UserService interface {
 	UpdateCompetitionUserStatus(ctx context.Context, param *model.CompetitionUserListParam, status ojmodel.CompetitionUserStatus) error
 	// GetAdminByID 获取管理员用户信息
 	GetAdminByID(ctx context.Context, adminID uint64) (*ojmodel.User, error)
+	// DeleteUserByID 删除用户
+	DeleteUserByID(ctx context.Context, userID uint64) error
+	// UpdateUser 更新用户
+	UpdateUser(ctx context.Context, param *model.UpdateUserParam) error
 }
 
 type UserServiceImpl struct {
 	db  *gorm.DB
+	rdb redis.Cmdable
 	log loggerv2.Logger
 }
 
-func NewUserService(db *gorm.DB, log loggerv2.Logger) UserService {
+func NewUserService(db *gorm.DB, rdb redis.Cmdable, log loggerv2.Logger) UserService {
 	return &UserServiceImpl{
 		db:  db,
+		rdb: rdb,
 		log: log,
 	}
 }
@@ -168,4 +181,54 @@ func (s *UserServiceImpl) GetAdminByID(ctx context.Context, adminID uint64) (*oj
 		return nil, fmt.Errorf("GetAdminByID failed: %w", err)
 	}
 	return &admin, nil
+}
+
+func (s *UserServiceImpl) DeleteUserByID(ctx context.Context, userID uint64) error {
+	err := s.db.WithContext(ctx).
+		Where("id = ?", userID).
+		Delete(&ojmodel.User{}).Error
+	if err != nil {
+		return fmt.Errorf("DeleteUserByID failed: %w", err)
+	}
+	return nil
+}
+
+func (s *UserServiceImpl) UpdateUser(ctx context.Context, param *model.UpdateUserParam) error {
+	updates := map[string]any{}
+	revoke := false
+	if param.Realname != "" {
+		updates["realname"] = param.Realname
+	}
+	if param.Status != nil {
+		revoke = *param.Status == ojmodel.UserStatusDisabled
+		updates["status"] = param.Status.Int8()
+	}
+	if param.Password != "" {
+		hash, err := bcrypt.GenerateFromPassword([]byte(param.Password), bcrypt.DefaultCost)
+		if err != nil {
+			return fmt.Errorf("UpdateUser failed: %w", err)
+		}
+		updates["password"] = string(hash)
+		revoke = true
+	}
+
+	err := s.db.WithContext(ctx).Model(&ojmodel.User{}).
+		Where("id = ?", param.UserID).
+		Updates(updates).Error
+	if err != nil {
+		return fmt.Errorf("UpdateUser failed: %w", err)
+	}
+
+	if revoke {
+		retryCtx := context.WithValue(ctx, loggerv2.FieldsKey, ctx.Value(loggerv2.FieldsKey))
+		retry.Do(retryCtx, func() error {
+			return s.rdb.Incr(retryCtx, fmt.Sprintf(tokenVersionKey, param.UserID)).Err()
+		}, retry.WithAsync(true), retry.WithCallback(func(err error) {
+			if err != nil {
+				s.log.ErrorContext(retryCtx, "UpdateUser failed", logger.Error(err))
+			}
+		}))
+	}
+
+	return nil
 }

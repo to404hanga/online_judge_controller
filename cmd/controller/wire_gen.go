@@ -23,7 +23,7 @@ func BuildDependency() *web.GinServer {
 	db := ioc.InitDB()
 	competitionService := service.NewCompetitionService(db, cmdable, logger)
 	rankingService := ioc2.InitRankingService(db, cmdable, logger)
-	userService := service.NewUserService(db, logger)
+	userService := service.NewUserService(db, cmdable, logger)
 	competitionHandler := web.NewCompetitionHandler(competitionService, rankingService, userService, handler, logger)
 	problemService := service.NewProblemService(db, cmdable, logger)
 	problemHandler := web.NewProblemHandler(problemService, userService, logger)

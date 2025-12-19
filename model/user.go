@@ -41,3 +41,19 @@ type CompetitionUserListParam struct {
 	CompetitionID uint64   `json:"competition_id" binding:"required"` // 竞赛ID
 	UserIDList    []uint64 `json:"user_id_list" binding:"required"`   // 用户ID
 }
+
+type DeleteUserParam struct {
+	CommonParam `json:"-"`
+
+	UserID uint64 `json:"user_id" binding:"required"` // 用户ID
+}
+
+type UpdateUserParam struct {
+	CommonParam `json:"-"`
+
+	UserID uint64 `json:"user_id" binding:"required"` // 用户ID
+
+	Realname string              `json:"realname"`                             // 真实姓名
+	Status   *ojmodel.UserStatus `json:"status" binding:"omitempty,oneof=0 1"` // 状态, 0: 正常, 1: 禁用
+	Password string              `json:"password"`                             // 密码
+}

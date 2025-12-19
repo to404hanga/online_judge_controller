@@ -5,7 +5,6 @@ go 1.23.4
 require (
 	github.com/IBM/sarama v1.45.0
 	github.com/bytedance/sonic v1.14.2
-	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-contrib/pprof v1.5.3
 	github.com/gin-gonic/gin v1.11.0
 	github.com/go-playground/validator/v10 v10.27.0
@@ -19,6 +18,7 @@ require (
 	github.com/to404hanga/online_judge_common v0.0.18
 	github.com/to404hanga/pkg404 v0.0.35
 	github.com/xuri/excelize/v2 v2.9.1
+	golang.org/x/crypto v0.40.0
 	google.golang.org/protobuf v1.36.10
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/gorm v1.30.0
@@ -84,7 +84,6 @@ require (
 	go.uber.org/zap v1.27.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/arch v0.20.0 // indirect
-	golang.org/x/crypto v0.40.0 // indirect
 	golang.org/x/mod v0.26.0 // indirect
 	golang.org/x/net v0.42.0 // indirect
 	golang.org/x/sync v0.16.0 // indirect
