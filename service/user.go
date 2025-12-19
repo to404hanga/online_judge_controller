@@ -14,7 +14,6 @@ import (
 	"github.com/to404hanga/pkg404/gotools/transform"
 	"github.com/to404hanga/pkg404/logger"
 	loggerv2 "github.com/to404hanga/pkg404/logger/v2"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -206,14 +205,6 @@ func (s *UserServiceImpl) UpdateUser(ctx context.Context, param *model.UpdateUse
 	if param.Status != nil {
 		revoke = *param.Status == ojmodel.UserStatusDisabled
 		updates["status"] = param.Status.Int8()
-	}
-	if param.Password != "" {
-		hash, err := bcrypt.GenerateFromPassword([]byte(param.Password), bcrypt.DefaultCost)
-		if err != nil {
-			return fmt.Errorf("UpdateUser failed: %w", err)
-		}
-		updates["password"] = string(hash)
-		revoke = true
 	}
 
 	err := s.db.WithContext(ctx).Model(&ojmodel.User{}).

@@ -55,5 +55,4 @@ type UpdateUserParam struct {
 
 	Realname string              `json:"realname"`                             // 真实姓名
 	Status   *ojmodel.UserStatus `json:"status" binding:"omitempty,oneof=0 1"` // 状态, 0: 正常, 1: 禁用
-	Password string              `json:"password"`                             // 密码
 }
