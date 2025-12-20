@@ -45,6 +45,7 @@ func (h *UserHandler) Register(r *gin.Engine) {
 	r.PUT(constants.UpdateUserPath, gintool.WrapHandler(h.UpdateUser, h.log))
 	r.PUT(constants.ResetPasswordPath, gintool.WrapHandler(h.ResetPassword, h.log))
 	r.PUT(constants.UpdatePasswordPath, gintool.WrapHandler(h.UpdatePassword, h.log))
+	r.GET(constants.GetCompetitionUserListPath, gintool.WrapHandler(h.GetCompetitionUserList, h.log))
 }
 
 func (h *UserHandler) GetUserList(c *gin.Context, param *model.GetUserListParam) {
@@ -492,5 +493,52 @@ func (h *UserHandler) UpdatePassword(c *gin.Context, param *model.UpdatePassword
 	gintool.GinResponse(c, &gintool.Response{
 		Code:    http.StatusOK,
 		Message: "success",
+	})
+}
+
+func (h *UserHandler) GetCompetitionUserList(c *gin.Context, param *model.GetCompetitionUserListParam) {
+	if param.OrderBy == "" {
+		param.OrderBy = "id"
+	}
+
+	fields := []logger.Field{
+		logger.Uint64("competition_id", param.CompetitionID),
+		logger.String("order_by", param.OrderBy),
+		logger.Bool("desc", param.Desc),
+		logger.Int("page", param.Page),
+		logger.Int("page_size", param.PageSize),
+	}
+	if param.Username != "" {
+		fields = append(fields, logger.String("username", param.Username))
+	}
+	if param.Realname != "" {
+		fields = append(fields, logger.String("realname", param.Realname))
+	}
+	if param.Status != nil {
+		fields = append(fields, logger.Int8("status", param.Status.Int8()))
+	}
+
+	ctx := loggerv2.WithFieldsToContext(c.Request.Context(), fields...)
+	h.log.DebugContext(ctx, "GetCompetitionUserList")
+
+	userList, total, err := h.userSvc.GetCompetitionUserList(ctx, param)
+	if err != nil {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusInternalServerError,
+			Message: "internal error",
+		})
+		h.log.ErrorContext(ctx, "GetCompetitionUserList failed", logger.Error(err))
+		return
+	}
+
+	gintool.GinResponse(c, &gintool.Response{
+		Code:    http.StatusOK,
+		Message: "success",
+		Data: model.GetCompetitionUserListResponse{
+			Total:    total,
+			List:     userList,
+			Page:     param.Page,
+			PageSize: param.PageSize,
+		},
 	})
 }

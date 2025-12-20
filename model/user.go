@@ -70,3 +70,25 @@ type UpdatePasswordParam struct {
 	OldPassword string `json:"old_password" binding:"required"` // 旧密码
 	NewPassword string `json:"new_password" binding:"required"` // 新密码
 }
+
+type GetCompetitionUserListParam struct {
+	CommonParam `json:"-"`
+
+	CompetitionID uint64 `form:"competition_id" binding:"required"` // 竞赛ID
+
+	OrderBy  string                         `form:"order_by" binding:"omitempty,oneof=id username realname"` // 排序字段
+	Desc     bool                           `form:"desc"`                                                    // 是否降序
+	Username string                         `form:"username"`                                                // 按用户名查询, 前缀匹配
+	Realname string                         `form:"realname"`                                                // 按真实姓名查询, 全模糊匹配
+	Status   *ojmodel.CompetitionUserStatus `form:"status" binding:"omitempty,oneof=0 1"`                    // 按状态查询, 0: 正常, 1: 禁用
+
+	Page     int `form:"page" binding:"required,min=1"`               // 分页页码
+	PageSize int `form:"page_size" binding:"required,min=10,max=100"` // 分页每页数量
+}
+
+type GetCompetitionUserListResponse struct {
+	Total    int                       `json:"total"`     // 总记录数
+	List     []ojmodel.CompetitionUser `json:"list"`      // 记录列表
+	Page     int                       `json:"page"`      // 分页页码
+	PageSize int                       `json:"page_size"` // 分页每页数量
+}

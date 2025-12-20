@@ -49,6 +49,8 @@ type UserService interface {
 	ResetUserPassword(ctx context.Context, userID uint64) error
 	// UpdateUserPassword 更新用户密码
 	UpdateUserPassword(ctx context.Context, userID uint64, password string) (bool, error)
+	// GetCompetitionUserList 获取比赛用户列表
+	GetCompetitionUserList(ctx context.Context, param *model.GetCompetitionUserListParam) ([]ojmodel.CompetitionUser, int, error)
 }
 
 type UserServiceImpl struct {
@@ -310,4 +312,41 @@ func (s *UserServiceImpl) UpdateUserPassword(ctx context.Context, userID uint64,
 		return true, fmt.Errorf("UpdateUserPassword failed: %w", err)
 	}
 	return true, nil
+}
+
+func (s *UserServiceImpl) GetCompetitionUserList(ctx context.Context, param *model.GetCompetitionUserListParam) ([]ojmodel.CompetitionUser, int, error) {
+	var userList []ojmodel.CompetitionUser
+	var total int64
+
+	query := s.db.WithContext(ctx).Model(&ojmodel.CompetitionUser{}).
+		Where("competition_id = ?", param.CompetitionID)
+
+	if param.Username != "" {
+		query = query.Where("username LIKE ?", param.Username+"%") // 前缀匹配查询
+	}
+	if param.Realname != "" {
+		query = query.Where("realname LIKE ?", "%"+param.Realname+"%") // 模糊查询
+	}
+	if param.Status != nil {
+		query = query.Where("status = ?", param.Status.Int8())
+	}
+
+	err := query.Count(&total).Error
+	if err != nil {
+		return nil, 0, fmt.Errorf("GetCompetitionUserList failed: %w", err)
+	}
+
+	if param.Desc {
+		param.OrderBy += " desc"
+	}
+
+	err = query.Order(param.OrderBy).
+		Limit(param.PageSize).
+		Offset((param.Page - 1) * param.PageSize).
+		Find(&userList).Error
+	if err != nil {
+		return nil, 0, fmt.Errorf("GetCompetitionUserList failed: %w", err)
+	}
+
+	return userList, int(total), nil
 }

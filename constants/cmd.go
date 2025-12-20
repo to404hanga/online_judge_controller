@@ -42,6 +42,7 @@ const (
 	UpdateUserPath                = "/UpdateUser"                // 更新用户
 	ResetPasswordPath             = "/ResetPassword"             // 重置用户密码
 	UpdatePasswordPath            = "/UpdatePassword"            // 更新用户密码
+	GetCompetitionUserListPath    = "/GetCompetitionUserList"    // 获取比赛用户列表
 	AddUsersToCompetitionPath     = "/AddUsersToCompetition"     // 添加用户到比赛名单
 	EnableUsersInCompetitionPath  = "/EnableUsersInCompetition"  // 允许用户参加比赛
 	DisableUsersInCompetitionPath = "/DisableUsersInCompetition" // 禁用用户参加比赛
