@@ -218,16 +218,16 @@ func (h *UserHandler) checkCompetitionExist(ctx context.Context, competitionID u
 func (h *UserHandler) AddUsersToCompetition(c *gin.Context, param *model.AddUsersToCompetition) {
 	ctx := loggerv2.WithFieldsToContext(c.Request.Context(), logger.Uint64("competition_id", param.CompetitionID))
 
-	exist, err := h.checkCompetitionExist(ctx, param.CompetitionID)
+	competition, err := h.competitionSvc.GetCompetition(ctx, param.CompetitionID)
 	if err != nil {
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,
 			Message: err.Error(),
 		})
-		h.log.ErrorContext(ctx, "AddUsersToCompetition check competition exist failed", logger.Error(err))
+		h.log.ErrorContext(ctx, "AddUsersToCompetition get competition failed", logger.Error(err))
 		return
 	}
-	if !exist {
+	if competition == nil || competition.ID == 0 {
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusBadRequest,
 			Message: "competition not found",
@@ -256,7 +256,7 @@ func (h *UserHandler) AddUsersToCompetition(c *gin.Context, param *model.AddUser
 		return
 	}
 
-	rowsAffected, err := h.userSvc.AddUsersToCompetition(ctx, param.CompetitionID, userMap)
+	rowsAffected, err := h.userSvc.AddUsersToCompetition(ctx, param.CompetitionID, userMap, competition.StartTime)
 	if err != nil {
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,

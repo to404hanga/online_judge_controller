@@ -32,7 +32,7 @@ type UserService interface {
 	// GetUserList 获取用户列表
 	GetUserList(ctx context.Context, param *model.GetUserListParam) ([]ojmodel.User, error)
 	// AddUsersToCompetition 添加用户到比赛名单
-	AddUsersToCompetition(ctx context.Context, competitionID uint64, userMap map[uint64]*ojmodel.User) (int64, error)
+	AddUsersToCompetition(ctx context.Context, competitionID uint64, userMap map[uint64]*ojmodel.User, startTime time.Time) (int64, error)
 	// GetUserListByUsernameList 获取用户列表, 根据学号全匹配, 仅返回正常用户
 	GetUserListByUsernameList(ctx context.Context, usernameList []string) ([]ojmodel.User, error)
 	// GetUserListByIDList 获取用户列表, 根据ID列表, 仅返回正常用户
@@ -120,7 +120,7 @@ func (s *UserServiceImpl) GetUserList(ctx context.Context, param *model.GetUserL
 }
 
 // AddUsersToCompetition 添加用户到比赛名单
-func (s *UserServiceImpl) AddUsersToCompetition(ctx context.Context, competitionID uint64, userMap map[uint64]*ojmodel.User) (int64, error) {
+func (s *UserServiceImpl) AddUsersToCompetition(ctx context.Context, competitionID uint64, userMap map[uint64]*ojmodel.User, startTime time.Time) (int64, error) {
 	competitionUser := transform.SliceFromMap(userMap, func(userID uint64, user *ojmodel.User) ojmodel.CompetitionUser {
 		return ojmodel.CompetitionUser{
 			CompetitionID: competitionID,
@@ -128,6 +128,7 @@ func (s *UserServiceImpl) AddUsersToCompetition(ctx context.Context, competition
 			Username:      user.Username,
 			Realname:      user.Realname,
 			Status:        pointer.ToPtr(ojmodel.CompetitionUserStatusNormal), // 默认正常状态
+			StartTime:     startTime,
 		}
 	})
 	res := s.db.WithContext(ctx).Create(&competitionUser)
