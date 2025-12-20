@@ -46,4 +46,5 @@ const (
 	AddUsersToCompetitionPath     = "/AddUsersToCompetition"     // 添加用户到比赛名单
 	EnableUsersInCompetitionPath  = "/EnableUsersInCompetition"  // 允许用户参加比赛
 	DisableUsersInCompetitionPath = "/DisableUsersInCompetition" // 禁用用户参加比赛
+	CreateUserPath                = "/CreateUser"                // 创建用户
 )

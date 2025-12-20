@@ -92,3 +92,11 @@ type GetCompetitionUserListResponse struct {
 	Page     int                       `json:"page"`      // 分页页码
 	PageSize int                       `json:"page_size"` // 分页每页数量
 }
+
+type CreateUserParam struct {
+	CommonParam `json:"-"`
+
+	Username string            `json:"username" binding:"required"`       // 用户名
+	Realname string            `json:"realname" binding:"required"`       // 真实姓名
+	Role     *ojmodel.UserRole `json:"role" binding:"required,oneof=0 1"` // 角色, 0: 普通用户, 1: 管理员
+}

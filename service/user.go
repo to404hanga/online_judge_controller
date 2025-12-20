@@ -51,6 +51,8 @@ type UserService interface {
 	UpdateUserPassword(ctx context.Context, userID uint64, password string) (bool, error)
 	// GetCompetitionUserList 获取比赛用户列表
 	GetCompetitionUserList(ctx context.Context, param *model.GetCompetitionUserListParam) ([]ojmodel.CompetitionUser, int, error)
+	// CreateUser 创建用户
+	CreateUser(ctx context.Context, username, realname string, role *ojmodel.UserRole) error
 }
 
 type UserServiceImpl struct {
@@ -349,4 +351,24 @@ func (s *UserServiceImpl) GetCompetitionUserList(ctx context.Context, param *mod
 	}
 
 	return userList, int(total), nil
+}
+
+func (s *UserServiceImpl) CreateUser(ctx context.Context, username, realname string, role *ojmodel.UserRole) error {
+	hash, err := bcrypt.GenerateFromPassword(defaultPassword, bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("CreateUser failed: %w", err)
+	}
+
+	err = s.db.WithContext(ctx).Model(&ojmodel.User{}).
+		Create(&ojmodel.User{
+			Username: username,
+			Password: string(hash),
+			Realname: realname,
+			Role:     role,
+			Status:   pointer.ToPtr(ojmodel.UserStatusNormal),
+		}).Error
+	if err != nil {
+		return fmt.Errorf("CreateUser failed: %w", err)
+	}
+	return nil
 }

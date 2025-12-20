@@ -46,6 +46,7 @@ func (h *UserHandler) Register(r *gin.Engine) {
 	r.PUT(constants.ResetPasswordPath, gintool.WrapHandler(h.ResetPassword, h.log))
 	r.PUT(constants.UpdatePasswordPath, gintool.WrapHandler(h.UpdatePassword, h.log))
 	r.GET(constants.GetCompetitionUserListPath, gintool.WrapHandler(h.GetCompetitionUserList, h.log))
+	r.POST(constants.CreateUserPath, gintool.WrapHandler(h.CreateUser, h.log))
 }
 
 func (h *UserHandler) GetUserList(c *gin.Context, param *model.GetUserListParam) {
@@ -540,5 +541,28 @@ func (h *UserHandler) GetCompetitionUserList(c *gin.Context, param *model.GetCom
 			Page:     param.Page,
 			PageSize: param.PageSize,
 		},
+	})
+}
+
+func (h *UserHandler) CreateUser(c *gin.Context, param *model.CreateUserParam) {
+	ctx := loggerv2.WithFieldsToContext(c.Request.Context(),
+		logger.String("username", param.Username),
+		logger.String("realname", param.Realname),
+		logger.Int8("role", param.Role.Int8()),
+	)
+
+	err := h.userSvc.CreateUser(ctx, param.Username, param.Realname, param.Role)
+	if err != nil {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusInternalServerError,
+			Message: "internal error",
+		})
+		h.log.ErrorContext(ctx, "CreateUser failed", logger.Error(err))
+		return
+	}
+
+	gintool.GinResponse(c, &gintool.Response{
+		Code:    http.StatusOK,
+		Message: "success",
 	})
 }
