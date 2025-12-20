@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 	ojmodel "github.com/to404hanga/online_judge_common/model"
@@ -198,8 +199,8 @@ func (s *UserServiceImpl) DeleteUserByID(ctx context.Context, userID uint64) err
 	if err != nil {
 		return fmt.Errorf("DeleteUserByID failed: %w", err)
 	}
-	retryCtx := context.WithValue(context.Background(), loggerv2.FieldsKey, ctx.Value(loggerv2.FieldsKey))
-	s.revokeUserToken(retryCtx, userID)
+	revokeCtx := context.WithValue(context.Background(), loggerv2.FieldsKey, ctx.Value(loggerv2.FieldsKey))
+	s.revokeUserToken(revokeCtx, userID)
 	return nil
 }
 
@@ -210,7 +211,26 @@ func (s *UserServiceImpl) UpdateUser(ctx context.Context, param *model.UpdateUse
 		updates["realname"] = param.Realname
 	}
 	if param.Status != nil {
-		revoke = *param.Status == ojmodel.UserStatusDisabled
+		if *param.Status == ojmodel.UserStatusDisabled {
+			revoke = true
+		} else {
+			retryCtx := context.WithValue(context.Background(), loggerv2.FieldsKey, ctx.Value(loggerv2.FieldsKey))
+			cutoffTime := time.Now().Add(-8 * time.Hour) // 当前时间 - 8 小时，晚于这个时间开始的比赛，该用户都会被允许参赛
+			retry.Do(retryCtx, func() error {
+				errInternal := s.db.WithContext(retryCtx).Model(&ojmodel.CompetitionUser{}).
+					Where("user_id = ?", param.UserID).
+					Where("start_time >= ?", cutoffTime).
+					Update("status", ojmodel.CompetitionUserStatusDisabled).Error
+				if errInternal != nil {
+					return fmt.Errorf("UpdateCompetitionUserStatus failed: %w", errInternal)
+				}
+				return nil
+			}, retry.WithAsync(true), retry.WithCallback(func(err error) {
+				if err != nil {
+					s.log.ErrorContext(ctx, "UpdateCompetitionUserStatus failed", logger.Error(err))
+				}
+			}))
+		}
 		updates["status"] = param.Status.Int8()
 	}
 
@@ -222,8 +242,8 @@ func (s *UserServiceImpl) UpdateUser(ctx context.Context, param *model.UpdateUse
 	}
 
 	if revoke {
-		retryCtx := context.WithValue(context.Background(), loggerv2.FieldsKey, ctx.Value(loggerv2.FieldsKey))
-		s.revokeUserToken(retryCtx, param.UserID)
+		revokeCtx := context.WithValue(context.Background(), loggerv2.FieldsKey, ctx.Value(loggerv2.FieldsKey))
+		s.revokeUserToken(revokeCtx, param.UserID)
 	}
 
 	return nil
@@ -231,8 +251,20 @@ func (s *UserServiceImpl) UpdateUser(ctx context.Context, param *model.UpdateUse
 
 func (s *UserServiceImpl) revokeUserToken(ctx context.Context, userID uint64) {
 	key := fmt.Sprintf(tokenVersionKey, userID)
+	cutoffTime := time.Now().Add(-8 * time.Hour) // 当前时间 - 8 小时，晚于这个时间开始的比赛，该用户都会被禁用
 	retry.Do(ctx, func() error {
-		return s.rdb.Eval(ctx, incrTokenVersionScript, []string{key}).Err()
+		err := s.rdb.Eval(ctx, incrTokenVersionScript, []string{key}).Err()
+		if err != nil {
+			return fmt.Errorf("IncrTokenVersion failed: %w", err)
+		}
+		err = s.db.WithContext(ctx).Model(&ojmodel.CompetitionUser{}).
+			Where("user_id = ?", userID).
+			Where("start_time >= ?", cutoffTime).
+			Update("status", ojmodel.CompetitionUserStatusDisabled).Error
+		if err != nil {
+			return fmt.Errorf("UpdateCompetitionUserStatus failed: %w", err)
+		}
+		return nil
 	}, retry.WithAsync(true), retry.WithCallback(func(err error) {
 		if err != nil {
 			s.log.ErrorContext(ctx, "RevokeUserToken failed", logger.Error(err))
