@@ -53,8 +53,8 @@ func (h *CompetitionHandler) Register(r *gin.Engine) {
 	r.POST(constants.InitRankingPath, gintool.WrapHandler(h.InitRanking, h.log))
 	r.PUT(constants.UpdateScorePath, gintool.WrapHandler(h.UpdateScore, h.log)) // 仅内部测试用, 后续 release 版本移除
 	r.GET(constants.GetCompetitionListPath, gintool.WrapHandler(h.GetCompetitionList, h.log))
-	// TODO: 增加用户获取比赛题目列表接口
-	// TODO: 增加用户获取比赛列表接口
+	r.GET(constants.UserGetCompetitionProblemListPath, gintool.WrapCompetitionHandler(h.UserGetCompetitionProblemList, h.log))
+	r.GET(constants.UserGetCompetitionProblemDetailPath, gintool.WrapCompetitionHandler(h.UserGetCompetitionProblemDetail, h.log))
 	r.GET(constants.UserGetCompetitionListPath, gintool.WrapHandler(h.UserGetCompetitionList, h.log))
 	r.GET(constants.GetCompetitionProblemListPath, gintool.WrapHandler(h.GetCompetitionProblemList, h.log))
 	r.GET(constants.GetCompetitionPath, gintool.WrapHandler(h.GetCompetition, h.log))
@@ -585,5 +585,48 @@ func (h *CompetitionHandler) GetCompetition(c *gin.Context, param *model.GetComp
 			CreatorRealname: creator.Realname,
 			UpdaterRealname: updater.Realname,
 		},
+	})
+}
+
+func (h *CompetitionHandler) UserGetCompetitionProblemList(c *gin.Context, param *model.UserGetCompetitionProblemListParam) {
+	ctx := loggerv2.ContextWithFields(c.Request.Context(), logger.Uint64("competition_id", param.CompetitionID))
+	h.log.DebugContext(ctx, "UserGetCompetitionProblemList param")
+
+	problemList, err := h.competitionSvc.UserGetCompetitionProblemList(ctx, param.CompetitionID)
+	if err != nil {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusInternalServerError,
+			Message: fmt.Sprintf("UserGetCompetitionProblemList failed: %s", err.Error()),
+		})
+		h.log.ErrorContext(ctx, "UserGetCompetitionProblemList failed", logger.Error(err))
+		return
+	}
+	gintool.GinResponse(c, &gintool.Response{
+		Code:    http.StatusOK,
+		Message: "success",
+		Data:    problemList,
+	})
+}
+
+func (h *CompetitionHandler) UserGetCompetitionProblemDetail(c *gin.Context, param *model.UserGetCompetitionProblemDetailParam) {
+	ctx := loggerv2.ContextWithFields(c.Request.Context(),
+		logger.Uint64("competition_id", param.CompetitionID),
+		logger.Uint64("problem_id", param.ProblemID))
+	h.log.DebugContext(ctx, "UserGetCompetitionProblemDetail param")
+
+	problem, err := h.competitionSvc.UserGetCompetitionProblemDetail(ctx, param.CompetitionID, param.ProblemID)
+	if err != nil {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusInternalServerError,
+			Message: fmt.Sprintf("UserGetCompetitionProblemDetail failed: %s", err.Error()),
+		})
+		h.log.ErrorContext(ctx, "UserGetCompetitionProblemDetail failed", logger.Error(err))
+		return
+	}
+
+	gintool.GinResponse(c, &gintool.Response{
+		Code:    http.StatusOK,
+		Message: "success",
+		Data:    problem,
 	})
 }

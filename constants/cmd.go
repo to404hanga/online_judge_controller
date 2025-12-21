@@ -29,6 +29,8 @@ const (
 	GetCompetitionPath                  = "/GetCompetition"                  // 获取比赛
 	UserGetCompetitionListPath          = "/UserGetCompetitionList"          // 用户获取比赛列表
 	GetCompetitionProblemListPath       = "/GetCompetitionProblemList"       // 获取比赛题目列表
+	UserGetCompetitionProblemListPath   = "/UserGetCompetitionProblemList"   // 用户获取比赛题目列表
+	UserGetCompetitionProblemDetailPath = "/UserGetCompetitionProblemDetail" // 用户获取比赛题目详情
 )
 
 const (

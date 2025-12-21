@@ -155,3 +155,13 @@ type GetCompetitionResponse struct {
 	CreatorRealname      string `json:"creator_realname"`
 	UpdaterRealname      string `json:"updater_realname"`
 }
+
+type UserGetCompetitionProblemListParam struct {
+	CompetitionCommonParam `json:"-"`
+}
+
+type UserGetCompetitionProblemDetailParam struct {
+	CompetitionCommonParam `json:"-"`
+
+	ProblemID uint64 `form:"problem_id" binding:"required"`
+}

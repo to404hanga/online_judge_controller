@@ -40,6 +40,10 @@ type CompetitionService interface {
 	GetCompetition(ctx context.Context, competitionID uint64) (*ojmodel.Competition, error)
 	// GetCompetitionList 获取比赛列表
 	GetCompetitionList(ctx context.Context, desc bool, orderBy, name string, status *ojmodel.CompetitionStatus, phase *model.CompetitionPhase, page, pageSize int) ([]ojmodel.Competition, int, error)
+	// UserGetCompetitionProblemList 用户获取比赛题目列表
+	UserGetCompetitionProblemList(ctx context.Context, competitionID uint64) ([]ojmodel.CompetitionProblem, error)
+	// UserGetCompetitionProblemDetail 用户获取比赛题目详情
+	UserGetCompetitionProblemDetail(ctx context.Context, competitionID, problemID uint64) (*ojmodel.Problem, error)
 }
 
 const (
@@ -512,4 +516,148 @@ func (s *CompetitionServiceImpl) GetCompetitionList(ctx context.Context, desc bo
 	}
 
 	return competitions, int(total), nil
+}
+
+func (s *CompetitionServiceImpl) UserGetCompetitionProblemList(ctx context.Context, competitionID uint64) ([]ojmodel.CompetitionProblem, error) {
+	var competitionProblems []ojmodel.CompetitionProblem
+	problemListKey := fmt.Sprintf(competitionProblemListKey, competitionID)
+
+	// 从 Redis 获取比赛题目列表
+	problemBytes, err := s.rdb.Get(ctx, problemListKey).Bytes()
+	if err == nil {
+		if err = json.Unmarshal(problemBytes, &competitionProblems); err == nil {
+			return competitionProblems, nil
+		}
+		s.log.WarnContext(ctx, "UserGetCompetitionProblemList: failed to unmarshal competition problem list from redis", logger.Error(err))
+	}
+	s.log.WarnContext(ctx, "UserGetCompetitionProblemList: failed to get competition problem list from redis", logger.Error(err))
+
+	// 加分布式锁
+	lockKey := fmt.Sprintf("lock:competition:%d:problem:load", competitionID)
+	ok, err := s.rdb.SetNX(ctx, lockKey, "locked", 10*time.Second).Result()
+	if err != nil {
+		return nil, fmt.Errorf("UserGetCompetitionProblemList: failed to set lock: %w", err)
+	}
+
+	if !ok {
+		// 未获取到锁，休眠后重试
+		time.Sleep(1 * time.Second)
+		return s.UserGetCompetitionProblemList(ctx, competitionID)
+	}
+	defer func() {
+		retryCtx := context.WithValue(context.Background(), loggerv2.FieldsKey, ctx.Value(loggerv2.FieldsKey))
+		retry.Do(retryCtx, func() error {
+			return s.rdb.Del(retryCtx, lockKey).Err()
+		}, retry.WithAsync(true), retry.WithCallback(func(err error) {
+			s.log.ErrorContext(retryCtx, "UserGetCompetitionProblemList: failed to delete lock", logger.Error(err))
+		}))
+	}()
+
+	// 获取分布式锁后再次从 Redis 获取比赛题目列表
+	problemBytes, err = s.rdb.Get(ctx, problemListKey).Bytes()
+	if err == nil {
+		if err = json.Unmarshal(problemBytes, &competitionProblems); err == nil {
+			return competitionProblems, nil
+		}
+		s.log.WarnContext(ctx, "UserGetCompetitionProblemList: failed to unmarshal competition problem list from redis", logger.Error(err))
+	}
+	s.log.WarnContext(ctx, "UserGetCompetitionProblemList: failed to get competition problem list from redis", logger.Error(err))
+
+	// 从数据库加载比赛题目列表
+	err = s.db.WithContext(ctx).
+		Where("competition_id = ?", competitionID).
+		Where("status = ?", ojmodel.CompetitionProblemStatusEnabled).
+		Select("id", "competition_id", "problem_id", "problem_title").
+		Find(&competitionProblems).Error
+	if err != nil {
+		return nil, fmt.Errorf("UserGetCompetitionProblemList: failed to select competition problem: %w", err)
+	}
+
+	// 将比赛题目列表写入 Redis 缓存
+	problemBytes, err = json.Marshal(competitionProblems)
+	if err == nil {
+		s.rdb.Set(ctx, problemListKey, problemBytes, 8*time.Hour)
+	} else {
+		s.log.ErrorContext(ctx, "UserGetCompetitionProblemList: failed to marshal competition problem list", logger.Error(err))
+	}
+
+	return competitionProblems, nil
+}
+
+func (s *CompetitionServiceImpl) UserGetCompetitionProblemDetail(ctx context.Context, competitionID, problemID uint64) (*ojmodel.Problem, error) {
+	var problem ojmodel.Problem
+	problemKey := fmt.Sprintf(competitionProblemKey, competitionID, problemID)
+
+	// 从 Redis 获取比赛题目详情
+	problemBytes, err := s.rdb.Get(ctx, problemKey).Bytes()
+	if err == nil {
+		if err = json.Unmarshal(problemBytes, &problem); err == nil {
+			return &problem, nil
+		}
+		s.log.WarnContext(ctx, "UserGetCompetitionProblemDetail: failed to unmarshal competition problem from redis", logger.Error(err))
+	}
+	s.log.WarnContext(ctx, "UserGetCompetitionProblemDetail: failed to get competition problem from redis", logger.Error(err))
+
+	// 加分布式锁
+	lockKey := fmt.Sprintf("lock:competition:%d:problem:%d:load", competitionID, problemID)
+	ok, err := s.rdb.SetNX(ctx, lockKey, "locked", 10*time.Second).Result()
+	if err != nil {
+		return nil, fmt.Errorf("UserGetCompetitionProblemDetail: failed to set lock: %w", err)
+	}
+
+	if !ok {
+		// 未获取到锁，休眠后重试
+		time.Sleep(1 * time.Second)
+		return s.UserGetCompetitionProblemDetail(ctx, competitionID, problemID)
+	}
+	defer func() {
+		retryCtx := context.WithValue(context.Background(), loggerv2.FieldsKey, ctx.Value(loggerv2.FieldsKey))
+		retry.Do(retryCtx, func() error {
+			return s.rdb.Del(retryCtx, lockKey).Err()
+		}, retry.WithAsync(true), retry.WithCallback(func(err error) {
+			s.log.ErrorContext(retryCtx, "UserGetCompetitionProblemDetail: failed to delete lock", logger.Error(err))
+		}))
+	}()
+
+	// 获取分布式锁后再次从 Redis 获取比赛题目详情
+	problemBytes, err = s.rdb.Get(ctx, problemKey).Bytes()
+	if err == nil {
+		if err = json.Unmarshal(problemBytes, &problem); err == nil {
+			return &problem, nil
+		}
+		s.log.WarnContext(ctx, "UserGetCompetitionProblemDetail: failed to unmarshal competition problem from redis", logger.Error(err))
+	}
+	s.log.WarnContext(ctx, "UserGetCompetitionProblemDetail: failed to get competition problem from redis", logger.Error(err))
+
+	// 先检查比赛题目是否启用
+	var count int64
+	err = s.db.WithContext(ctx).Model(&ojmodel.CompetitionProblem{}).
+		Where("competition_id = ?", competitionID).
+		Where("problem_id = ?", problemID).
+		Where("status = ?", ojmodel.CompetitionProblemStatusEnabled).
+		Count(&count).Error
+	if err != nil {
+		return nil, fmt.Errorf("UserGetCompetitionProblemDetail: failed to count competition problem: %w", err)
+	}
+	if count == 0 {
+		return nil, fmt.Errorf("UserGetCompetitionProblemDetail: competition problem not found or disabled")
+	}
+
+	// 再从数据库加载题目详情
+	err = s.db.WithContext(ctx).Model(&ojmodel.Problem{}).
+		Where("id = ?", problemID).
+		Select("id", "title", "description", "time_limit", "memory_limit").
+		First(&problem).Error
+	if err != nil {
+		return nil, fmt.Errorf("UserGetCompetitionProblemDetail: failed to select problem: %w", err)
+	}
+
+	// 将比赛题目详情写入 Redis 缓存
+	problemBytes, err = json.Marshal(problem)
+	if err == nil {
+		s.rdb.Set(ctx, problemKey, problemBytes, 8*time.Hour)
+	} else {
+		s.log.ErrorContext(ctx, "UserGetCompetitionProblemDetail: failed to marshal competition problem", logger.Error(err))
+	}
+	return &problem, nil
 }
