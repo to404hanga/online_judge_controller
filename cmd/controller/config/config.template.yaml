@@ -19,13 +19,12 @@ log:
 
 gin:
   checkCompetitionPath:
-    - "/GetCompetitionProblemListWithPresignedURL"
     - "/GetCompetitionRankingList"
     - "/GetCompetitionFastestSolverList"
-    - "/GetSubmissionUploadPresignedURL"
     - "/SubmitCompetitionProblem"
-    - "/GetSubmissionDownloadPresignedURL"
     - "/GetLatestSubmission"
+    - "/UserGetCompetitionProblemDetail"
+    - "/UserGetCompetitionProblemList"
   addr: ":8080"
 
 redis:
