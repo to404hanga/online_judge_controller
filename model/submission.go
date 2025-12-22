@@ -25,7 +25,7 @@ type Submission struct {
 type GetLatestSubmissionParam struct {
 	CompetitionCommonParam `json:"-"`
 
-	ProblemID uint64 `json:"problem_id" binding:"required"`
+	ProblemID uint64 `form:"problem_id" binding:"required"`
 }
 
 type GetLatestSubmissionResponse struct {
