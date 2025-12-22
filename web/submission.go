@@ -108,6 +108,13 @@ func (h *SubmissionHandler) GetLatestSubmission(c *gin.Context, param *model.Get
 		h.log.ErrorContext(ctx, "GetLatestSubmission failed", logger.Error(err))
 		return
 	}
+	if submission == nil || submission.ID == 0 {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusNotFound,
+			Message: "No submission found",
+		})
+		return
+	}
 
 	gintool.GinResponse(c, &gintool.Response{
 		Code:    http.StatusOK,
