@@ -173,7 +173,7 @@ func (s *RankingServiceImpl) UpdateUserScore(ctx context.Context, competitionID,
 			Where("competition_id = ?", competitionID).
 			Where("user_id = ?", userID).
 			Where("problem_id = ?", problemID).
-			Where("result = ?", model.ProblemStatusAccepted).
+			Where("result = ?", ojmodel.SubmissionResultAccepted).
 			Select("id").
 			Limit(1).
 			Scan(&latestAcceptedID).Error
@@ -187,7 +187,7 @@ func (s *RankingServiceImpl) UpdateUserScore(ctx context.Context, competitionID,
 			Where("competition_id = ?", competitionID).
 			Where("user_id = ?", userID).
 			Where("problem_id = ?", problemID).
-			Where("result != ?", model.ProblemStatusAccepted)
+			Where("result != ?", ojmodel.SubmissionResultAccepted)
 		if latestAcceptedID != 0 {
 			result = model.ProblemStatusAccepted
 			query = query.Where("id < ?", latestAcceptedID)
