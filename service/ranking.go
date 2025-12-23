@@ -300,6 +300,146 @@ func (s *RankingServiceImpl) UpdateUserScore(ctx context.Context, competitionID,
 	return nil
 }
 
+// rebuildRanking 重建用户分数排行榜
+func (s *RankingServiceImpl) rebuildRanking(ctx context.Context, competitionID, problemID, userID uint64, isAccepted bool, submissionTime time.Time, startTime time.Time) error {
+	userIDStr := strconv.FormatUint(userID, 10)
+	userDetailKey := fmt.Sprintf(UserDetailKey, userIDStr, competitionID)
+	rankingKey := fmt.Sprintf(RankingKey, competitionID)
+
+	// 获取当前用户数据
+	var userData UserRankingData
+	userDataStr, err := s.rdb.Get(ctx, userDetailKey).Result()
+	if err == redis.Nil {
+		// 用户首次提交, 初始化数据
+		userData = UserRankingData{
+			UserID:        userID,
+			TotalAccepted: 0,
+			TotalTimeUsed: 0,
+			Problems:      make(map[uint64]model.Problem),
+		}
+		err = s.db.WithContext(ctx).Model(&ojmodel.User{}).
+			Where("id = ?", userID).
+			Select("username", "realname").
+			First(&userData).Error
+		if err != nil {
+			return fmt.Errorf("get user detail from db failed: %w", err)
+		}
+	} else if err != nil {
+		return fmt.Errorf("get user detail from redis failed: %w", err)
+	} else {
+		if err = json.Unmarshal([]byte(userDataStr), &userData); err != nil {
+			return fmt.Errorf("unmarshal user detail from redis failed: %w", err)
+		}
+	}
+
+	// 获取题目当前状态
+	problem, exists := userData.Problems[problemID]
+	if !exists {
+		// 题目首次提交, 初始化数据
+		problem = model.Problem{
+			ProblemID: problemID,
+			Result:    model.ProblemStatusNotAttempted,
+			Retrys:    0,
+		}
+	}
+
+	// 如果题目已经通过, 不再更新
+	if problem.Result == model.ProblemStatusAccepted {
+		return nil
+	}
+
+	submissionTimeMs := submissionTime.UnixMilli()
+	startTimeMs := startTime.UnixMilli()
+	if submissionTimeMs < startTimeMs {
+		submissionTimeMs = startTimeMs
+	}
+	offsetMs := submissionTimeMs - startTimeMs
+	if isAccepted {
+		if problem.Result != model.ProblemStatusAccepted {
+			userData.TotalAccepted++
+			penaltyTime := int64(problem.Retrys * PenaltyTime)
+			userData.TotalTimeUsed = offsetMs + penaltyTime
+			problem.Result = model.ProblemStatusAccepted
+			problem.AcceptedAt = offsetMs
+			// 最快通过标记更新
+			fastKey := fmt.Sprintf(ProblemFastestSolverKey, problemID, competitionID)
+			// 读取当前最快
+			var prev struct {
+				ProblemID  uint64 `json:"problem_id"`
+				UserID     uint64 `json:"user_id"`
+				AcceptedAt int64  `json:"accepted_at"`
+			}
+			prevStr, err := s.rdb.Get(ctx, fastKey).Result()
+			if err == redis.Nil || err != nil {
+				// 无记录或读取失败，直接设置为当前最快
+				problem.IsFastest = true
+				fastBytes, _ := json.Marshal(struct {
+					ProblemID  uint64 `json:"problem_id"`
+					UserID     uint64 `json:"user_id"`
+					AcceptedAt int64  `json:"accepted_at"`
+				}{ProblemID: problemID, UserID: userID, AcceptedAt: userData.TotalTimeUsed})
+				_ = s.rdb.Set(ctx, fastKey, fastBytes, 8*time.Hour).Err()
+			} else {
+				_ = json.Unmarshal([]byte(prevStr), &prev)
+				if prev.AcceptedAt == 0 || userData.TotalTimeUsed < prev.AcceptedAt {
+					// 更新最快用户
+					if prev.UserID != 0 && prev.UserID != userID {
+						// 取消之前用户的最快标记
+						prevUserKey := fmt.Sprintf(UserDetailKey, strconv.FormatUint(prev.UserID, 10), competitionID)
+						prevUserStr, e2 := s.rdb.Get(ctx, prevUserKey).Result()
+						if e2 == nil {
+							var prevUser UserRankingData
+							if json.Unmarshal([]byte(prevUserStr), &prevUser) == nil {
+								p := prevUser.Problems[problemID]
+								p.IsFastest = false
+								prevUser.Problems[problemID] = p
+								b, _ := json.Marshal(prevUser)
+								_ = s.rdb.Set(ctx, prevUserKey, b, 8*time.Hour).Err()
+							}
+						}
+					}
+					problem.IsFastest = true
+					fastBytes, _ := json.Marshal(struct {
+						ProblemID  uint64 `json:"problem_id"`
+						UserID     uint64 `json:"user_id"`
+						AcceptedAt int64  `json:"accepted_at"`
+					}{ProblemID: problemID, UserID: userID, AcceptedAt: userData.TotalTimeUsed})
+					_ = s.rdb.Set(ctx, fastKey, fastBytes, 8*time.Hour).Err()
+				}
+			}
+		}
+	} else {
+		problem.Retrys++
+		problem.Result = model.ProblemStatusAttempting
+	}
+
+	userData.Problems[problemID] = problem
+
+	// 保存用户数据
+	userDataBytes, err := json.Marshal(userData)
+	if err != nil {
+		return fmt.Errorf("marshal user detail to redis failed: %w", err)
+	}
+
+	err = s.rdb.Set(ctx, userDetailKey, userDataBytes, 8*time.Hour).Err()
+	if err != nil {
+		return fmt.Errorf("set user detail to redis failed: %w", err)
+	}
+
+	score := s.calculateScore(userData.TotalAccepted, userData.TotalTimeUsed)
+
+	// 更新排行榜
+	err = s.rdb.ZAdd(ctx, rankingKey, redis.Z{
+		Score:  score,
+		Member: userIDStr,
+	}).Err()
+	if err != nil {
+		return fmt.Errorf("zadd ranking to redis failed: %w", err)
+	}
+
+	return nil
+}
+
 // InitCompetitionRanking 初始化比赛排行榜 (从 MySQL 重建 Redis 数据)
 func (s *RankingServiceImpl) InitCompetitionRanking(ctx context.Context, competitionID uint64) error {
 	rankingKey := fmt.Sprintf(RankingKey, competitionID)
@@ -340,9 +480,8 @@ func (s *RankingServiceImpl) InitCompetitionRanking(ctx context.Context, competi
 	err = s.db.WithContext(ctx).
 		Model(&ojmodel.Submission{}).
 		Where("competition_id = ?", competitionID).
-		Where("result IS NOT NULL"). // 过滤未判题的
-		Where("result != ?", -1).    // 假设 -1 是未判题
-		Order("id ASC").             // 保证回放顺序
+		Where("result != ?", 0). // 未判题
+		Order("id ASC").         // 保证回放顺序
 		Find(&submissions).Error
 	if err != nil {
 		return fmt.Errorf("load submissions from db failed: %w", err)
@@ -363,7 +502,7 @@ func (s *RankingServiceImpl) InitCompetitionRanking(ctx context.Context, competi
 			continue
 		}
 		isAccepted := *sub.Result == ojmodel.SubmissionResultAccepted
-		err := s.UpdateUserScore(ctx, competitionID, sub.ProblemID, sub.UserID, isAccepted, sub.CreatedAt, comp.StartTime)
+		err := s.rebuildRanking(ctx, competitionID, sub.ProblemID, sub.UserID, isAccepted, sub.CreatedAt, comp.StartTime)
 		if err != nil {
 			s.log.ErrorContext(ctx, "InitCompetitionRanking: replay submission failed",
 				logger.Error(err),
