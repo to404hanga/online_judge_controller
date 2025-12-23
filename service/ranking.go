@@ -167,17 +167,17 @@ func (s *RankingServiceImpl) UpdateUserScore(ctx context.Context, competitionID,
 	if !exists {
 		// 题目首次提交 or Redis 缓存过期
 
-		// 获取最早的通过记录 ID
-		var latestAcceptedID int64
+		// 获取最早的通过记录
+		var latestAccepted ojmodel.Submission
 		err = s.db.WithContext(ctx).Model(&ojmodel.Submission{}).
 			Where("competition_id = ?", competitionID).
 			Where("user_id = ?", userID).
 			Where("problem_id = ?", problemID).
 			Where("result = ?", ojmodel.SubmissionResultAccepted).
-			Select("id").
+			Select("id", "created_at").
 			Limit(1).
-			Scan(&latestAcceptedID).Error
-		if err != nil {
+			First(&latestAccepted).Error
+		if err != nil && err != gorm.ErrRecordNotFound {
 			return fmt.Errorf("get latest accepted submission id from db failed: %w", err)
 		}
 
@@ -188,9 +188,11 @@ func (s *RankingServiceImpl) UpdateUserScore(ctx context.Context, competitionID,
 			Where("user_id = ?", userID).
 			Where("problem_id = ?", problemID).
 			Where("result != ?", ojmodel.SubmissionResultAccepted)
-		if latestAcceptedID != 0 {
-			result = model.ProblemStatusAccepted
-			query = query.Where("id < ?", latestAcceptedID)
+		if latestAccepted.ID != 0 {
+			if latestAccepted.CreatedAt.Before(submissionTime) {
+				result = model.ProblemStatusAccepted
+			}
+			query = query.Where("id < ?", latestAccepted.ID)
 		}
 		err = query.Count(&retryCount).Error
 		if err != nil {
