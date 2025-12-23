@@ -165,3 +165,9 @@ type UserGetCompetitionProblemDetailParam struct {
 
 	ProblemID uint64 `form:"problem_id" binding:"required"`
 }
+
+type CheckUserCompetitionProblemAcceptedParam struct {
+	CompetitionCommonParam `json:"-"`
+
+	ProblemID uint64 `form:"problem_id" binding:"required"`
+}

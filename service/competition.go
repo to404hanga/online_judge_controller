@@ -44,6 +44,8 @@ type CompetitionService interface {
 	UserGetCompetitionProblemList(ctx context.Context, competitionID uint64) ([]ojmodel.CompetitionProblem, error)
 	// UserGetCompetitionProblemDetail 用户获取比赛题目详情
 	UserGetCompetitionProblemDetail(ctx context.Context, competitionID, problemID uint64) (*ojmodel.Problem, error)
+	// CheckUserCompetitionProblemAccepted 检查用户比赛题目是否已通过
+	CheckUserCompetitionProblemAccepted(ctx context.Context, competitionID, problemID, userID uint64) (bool, error)
 }
 
 const (
@@ -660,4 +662,18 @@ func (s *CompetitionServiceImpl) UserGetCompetitionProblemDetail(ctx context.Con
 		s.log.ErrorContext(ctx, "UserGetCompetitionProblemDetail: failed to marshal competition problem", logger.Error(err))
 	}
 	return &problem, nil
+}
+
+func (s *CompetitionServiceImpl) CheckUserCompetitionProblemAccepted(ctx context.Context, competitionID, problemID, userID uint64) (bool, error) {
+	var count int64
+	err := s.db.WithContext(ctx).Model(&ojmodel.Submission{}).
+		Where("competition_id = ?", competitionID).
+		Where("user_id = ?", userID).
+		Where("problem_id = ?", problemID).
+		Where("result = ?", ojmodel.SubmissionResultAccepted).
+		Count(&count).Error
+	if err != nil {
+		return false, fmt.Errorf("CheckUserCompetitionProblemAccepted: failed to count competition submission: %w", err)
+	}
+	return count > 0, nil
 }

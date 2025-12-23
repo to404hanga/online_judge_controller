@@ -58,6 +58,7 @@ func (h *CompetitionHandler) Register(r *gin.Engine) {
 	r.GET(constants.UserGetCompetitionListPath, gintool.WrapHandler(h.UserGetCompetitionList, h.log))
 	r.GET(constants.GetCompetitionProblemListPath, gintool.WrapHandler(h.GetCompetitionProblemList, h.log))
 	r.GET(constants.GetCompetitionPath, gintool.WrapHandler(h.GetCompetition, h.log))
+	r.GET(constants.CheckUserCompetitionProblemAcceptedPath, gintool.WrapCompetitionHandler(h.CheckUserCompetitionProblemAccepted, h.log))
 }
 
 func (h *CompetitionHandler) CreateCompetition(c *gin.Context, param *model.CreateCompetitionParam) {
@@ -628,5 +629,28 @@ func (h *CompetitionHandler) UserGetCompetitionProblemDetail(c *gin.Context, par
 		Code:    http.StatusOK,
 		Message: "success",
 		Data:    problem,
+	})
+}
+
+func (h *CompetitionHandler) CheckUserCompetitionProblemAccepted(c *gin.Context, param *model.CheckUserCompetitionProblemAcceptedParam) {
+	ctx := loggerv2.ContextWithFields(c.Request.Context(),
+		logger.Uint64("competition_id", param.CompetitionID),
+		logger.Uint64("problem_id", param.ProblemID))
+	h.log.DebugContext(ctx, "CheckUserCompetitionProblemAccepted param")
+
+	accepted, err := h.competitionSvc.CheckUserCompetitionProblemAccepted(ctx, param.CompetitionID, param.ProblemID, param.Operator)
+	if err != nil {
+		gintool.GinResponse(c, &gintool.Response{
+			Code:    http.StatusInternalServerError,
+			Message: fmt.Sprintf("CheckUserCompetitionProblemAccepted failed: %s", err.Error()),
+		})
+		h.log.ErrorContext(ctx, "CheckUserCompetitionProblemAccepted failed", logger.Error(err))
+		return
+	}
+
+	gintool.GinResponse(c, &gintool.Response{
+		Code:    http.StatusOK,
+		Message: "success",
+		Data:    accepted,
 	})
 }

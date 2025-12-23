@@ -25,6 +25,7 @@ gin:
     - "/GetLatestSubmission"
     - "/UserGetCompetitionProblemDetail"
     - "/UserGetCompetitionProblemList"
+    - "/CheckUserCompetitionProblemAccepted"
   addr: ":8080"
 
 redis:
