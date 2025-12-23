@@ -54,10 +54,8 @@ func (RedisConfig) Key() string {
 }
 
 type JWTConfig struct {
-	JWTExpiration     int    `yaml:"jwtExpiration"`     // jwt token 有效期（单位: 分钟）
-	RefreshExpiration int    `yaml:"refreshExpiration"` // refresh token 有效期（单位: 分钟）
-	JWTKey            string `yaml:"jwtKey"`            // jwt 密钥
-	RefreshKey        string `yaml:"refreshKey"`        // refresh token 密钥
+	JWTExpiration int    `yaml:"jwtExpiration"` // jwt token 有效期（单位: 分钟）
+	JWTKey        string `yaml:"jwtKey"`        // jwt 密钥
 }
 
 func (JWTConfig) Key() string {

@@ -205,7 +205,7 @@ func WrapCompetitionHandler[T model.CompetitionCommonParamInterface](h func(c *g
 			return
 		}
 
-		userClaims, exists := c.Get(constants.ContextUserClaimsKey)
+		userClaims, exists := c.Get(constants.ContextCompetitionClaimsKey)
 		if !exists {
 			GinResponse(c, &Response{
 				Code:    http.StatusBadRequest,
@@ -214,7 +214,7 @@ func WrapCompetitionHandler[T model.CompetitionCommonParamInterface](h func(c *g
 			log.ErrorContext(c.Request.Context(), "WrapCompetitionHandler competition user claims not found")
 			return
 		}
-		competitionUserClaims, ok := userClaims.(jwt.CompetitionUserClaims)
+		competitionClaims, ok := userClaims.(jwt.CompetitionClaims)
 		if !ok {
 			GinResponse(c, &Response{
 				Code:    http.StatusBadRequest,
@@ -224,8 +224,8 @@ func WrapCompetitionHandler[T model.CompetitionCommonParamInterface](h func(c *g
 			return
 		}
 
-		param.SetOperator(competitionUserClaims.UserId)
-		param.SetCompetitionID(competitionUserClaims.CompetitionID)
+		param.SetOperator(competitionClaims.UserId)
+		param.SetCompetitionID(competitionClaims.CompetitionID)
 
 		h(c, param)
 	}
@@ -236,7 +236,7 @@ func WrapCompetitionWithoutBodyHandler[T model.CompetitionCommonParamInterface](
 	return func(c *gin.Context) {
 		var param T
 
-		userClaims, exists := c.Get(constants.ContextUserClaimsKey)
+		userClaims, exists := c.Get(constants.ContextCompetitionClaimsKey)
 		if !exists {
 			GinResponse(c, &Response{
 				Code:    http.StatusBadRequest,
@@ -245,7 +245,7 @@ func WrapCompetitionWithoutBodyHandler[T model.CompetitionCommonParamInterface](
 			log.ErrorContext(c.Request.Context(), "WrapCompetitionHandler competition user claims not found")
 			return
 		}
-		competitionUserClaims, ok := userClaims.(jwt.CompetitionUserClaims)
+		competitionClaims, ok := userClaims.(jwt.CompetitionClaims)
 		if !ok {
 			GinResponse(c, &Response{
 				Code:    http.StatusBadRequest,
@@ -255,8 +255,8 @@ func WrapCompetitionWithoutBodyHandler[T model.CompetitionCommonParamInterface](
 			return
 		}
 
-		param.SetOperator(competitionUserClaims.UserId)
-		param.SetCompetitionID(competitionUserClaims.CompetitionID)
+		param.SetOperator(competitionClaims.UserId)
+		param.SetCompetitionID(competitionClaims.CompetitionID)
 
 		h(c, param)
 	}

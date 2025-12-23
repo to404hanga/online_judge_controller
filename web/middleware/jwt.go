@@ -48,16 +48,11 @@ func (m *JWTMiddlewareBuilder) CheckCompetition() gin.HandlerFunc {
 			return
 		}
 
-		var uc ojjwt.CompetitionUserClaims
+		var uc ojjwt.CompetitionClaims
 		token, err := jwt.ParseWithClaims(m.ExtractToken(ctx), &uc, func(t *jwt.Token) (any, error) {
 			return m.JwtKey(), nil
 		})
 		if err != nil || token == nil || !token.Valid {
-			// 仅当 GetProblem 接口无 token 或者解析失败时放行, 有 token 但非法不放行
-			if strings.HasPrefix(path, constants.GetProblemPath) && (err != nil || token == nil) {
-				ctx.Next()
-				return
-			}
 			m.log.ErrorContext(ctx, "CheckCompetition failed",
 				logger.Error(err),
 				logger.Bool("token==nil", token == nil),
@@ -72,7 +67,7 @@ func (m *JWTMiddlewareBuilder) CheckCompetition() gin.HandlerFunc {
 			return
 		}
 
-		ctx.Set(constants.ContextUserClaimsKey, uc)
+		ctx.Set(constants.ContextCompetitionClaimsKey, uc)
 		ctx.Next()
 	}
 }

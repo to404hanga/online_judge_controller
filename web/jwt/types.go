@@ -12,18 +12,10 @@ type Handler interface {
 	CheckSession(ctx *gin.Context, ssid string) error
 
 	JwtKey() []byte
-	RefreshKey() []byte
-	GetUserClaims(ctx *gin.Context) (*CompetitionUserClaims, error)
+	GetUserClaims(ctx *gin.Context) (*CompetitionClaims, error)
 }
 
-type RefreshCompetitionUserClaims struct {
-	jwt.RegisteredClaims
-	UserId        uint64
-	CompetitionID uint64
-	Ssid          string
-}
-
-type CompetitionUserClaims struct {
+type CompetitionClaims struct {
 	jwt.RegisteredClaims
 	UserId        uint64
 	CompetitionID uint64

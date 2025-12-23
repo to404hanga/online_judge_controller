@@ -1,15 +1,14 @@
 package constants
 
 const (
-	HeaderForwardedByKey  = "X-Forwarded-By"
-	HeaderUserIDKey       = "X-User-ID"
-	HeaderRequestIDKey    = "X-Request-ID"
-	HeaderProxyByKey      = "X-Proxy-By"
-	HeaderLoginTokenKey   = "X-Competition-JWT-Token"
-	HeaderRefreshTokenKey = "X-Competition-Refresh-Token"
+	HeaderForwardedByKey      = "X-Forwarded-By"
+	HeaderUserIDKey           = "X-User-ID"
+	HeaderRequestIDKey        = "X-Request-ID"
+	HeaderProxyByKey          = "X-Proxy-By"
+	HeaderCompetitionTokenKey = "X-Competition-JWT-Token"
 )
 const GatewayServiceName = "OnlineJudge-Controller"
 
 const (
-	ContextUserClaimsKey = "X-Competition-User-Claims"
+	ContextCompetitionClaimsKey = "X-Competition-User-Claims"
 )

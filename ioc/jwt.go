@@ -16,6 +16,6 @@ func InitJWTHandler(rdb redis.Cmdable) jwt.Handler {
 		log.Panicf("unmarshal jwt config failed: %v", err)
 	}
 
-	jwtHandler := jwt.NewRedisJWTHandler(rdb, []byte(cfg.JWTKey), []byte(cfg.RefreshKey), time.Duration(cfg.JWTExpiration)*time.Minute, time.Duration(cfg.RefreshExpiration)*time.Minute)
+	jwtHandler := jwt.NewRedisJWTHandler(rdb, []byte(cfg.JWTKey), time.Duration(cfg.JWTExpiration)*time.Minute)
 	return jwtHandler
 }
