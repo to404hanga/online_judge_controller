@@ -136,19 +136,23 @@ func (s *RankingServiceImpl) UpdateUserScore(ctx context.Context, competitionID,
 	var userData UserRankingData
 	userDataStr, err := s.rdb.Get(ctx, userDetailKey).Result()
 	if err == redis.Nil {
-		// 用户首次提交, 初始化数据
-		userData = UserRankingData{
-			UserID:        userID,
-			TotalAccepted: 0,
-			TotalTimeUsed: 0,
-			Problems:      make(map[uint64]model.Problem),
-		}
-		err = s.db.WithContext(ctx).Model(&ojmodel.User{}).
-			Where("id = ?", userID).
-			Select("username", "realname").
-			First(&userData).Error
+		// 用户首次提交 or Redis 缓存过期
+		var cu ojmodel.CompetitionUser
+		err = s.db.WithContext(ctx).Model(&ojmodel.CompetitionUser{}).
+			Where("competition_id = ?", competitionID).
+			Where("user_id = ?", userID).
+			Select("username", "realname", "pass_count", "total_time").
+			First(&cu).Error
 		if err != nil {
 			return fmt.Errorf("get user detail from db failed: %w", err)
+		}
+		userData = UserRankingData{
+			UserID:        userID,
+			Username:      cu.Username,
+			Realname:      cu.Realname,
+			TotalAccepted: int(cu.PassCount),
+			TotalTimeUsed: int64(cu.TotalTime),
+			Problems:      make(map[uint64]model.Problem),
 		}
 	} else if err != nil {
 		return fmt.Errorf("get user detail from redis failed: %w", err)
@@ -161,11 +165,41 @@ func (s *RankingServiceImpl) UpdateUserScore(ctx context.Context, competitionID,
 	// 获取题目当前状态
 	problem, exists := userData.Problems[problemID]
 	if !exists {
-		// 题目首次提交, 初始化数据
+		// 题目首次提交 or Redis 缓存过期
+
+		// 获取最早的通过记录 ID
+		var latestAcceptedID int64
+		err = s.db.WithContext(ctx).Model(&ojmodel.Submission{}).
+			Where("competition_id = ?", competitionID).
+			Where("user_id = ?", userID).
+			Where("problem_id = ?", problemID).
+			Where("result = ?", model.ProblemStatusAccepted).
+			Select("id").
+			Limit(1).
+			Scan(&latestAcceptedID).Error
+		if err != nil {
+			return fmt.Errorf("get latest accepted submission id from db failed: %w", err)
+		}
+
+		var retryCount int64
+		result := model.ProblemStatusNotAttempted
+		query := s.db.WithContext(ctx).Model(&ojmodel.Submission{}).
+			Where("competition_id = ?", competitionID).
+			Where("user_id = ?", userID).
+			Where("problem_id = ?", problemID).
+			Where("result != ?", model.ProblemStatusAccepted)
+		if latestAcceptedID != 0 {
+			result = model.ProblemStatusAccepted
+			query = query.Where("id < ?", latestAcceptedID)
+		}
+		err = query.Count(&retryCount).Error
+		if err != nil {
+			return fmt.Errorf("get retry count from db failed: %w", err)
+		}
 		problem = model.Problem{
 			ProblemID: problemID,
-			Result:    model.ProblemStatusNotAttempted,
-			Retrys:    0,
+			Result:    result,
+			Retrys:    int(retryCount),
 		}
 	}
 
