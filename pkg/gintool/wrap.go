@@ -1,8 +1,10 @@
 package gintool
 
 import (
+	"fmt"
 	"net/http"
 	"reflect"
+	"time"
 
 	json "github.com/bytedance/sonic"
 	"github.com/gin-gonic/gin"
@@ -259,5 +261,66 @@ func WrapCompetitionWithoutBodyHandler[T model.CompetitionCommonParamInterface](
 		param.SetCompetitionID(competitionClaims.CompetitionID)
 
 		h(c, param)
+	}
+}
+
+func WrapCompetitionSSEHandler[T model.CompetitionCommonParamInterface](h func(c *gin.Context, pType T) chan string, log loggerv2.Logger, heartCheckDuration time.Duration) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var param T
+
+		userClaims, exists := c.Get(constants.ContextCompetitionClaimsKey)
+		if !exists {
+			GinResponse(c, &Response{
+				Code:    http.StatusBadRequest,
+				Message: "competition user claims not found",
+			})
+			log.ErrorContext(c.Request.Context(), "WrapCompetitionHandler competition user claims not found")
+			return
+		}
+		competitionClaims, ok := userClaims.(jwt.CompetitionClaims)
+		if !ok {
+			GinResponse(c, &Response{
+				Code:    http.StatusBadRequest,
+				Message: "competition user claims type assertion failed",
+			})
+			log.ErrorContext(c.Request.Context(), "WrapCompetitionHandler competition user claims type assertion failed")
+			return
+		}
+
+		param.SetOperator(competitionClaims.UserId)
+		param.SetCompetitionID(competitionClaims.CompetitionID)
+
+		// 设置 SSE 必要响应头
+		c.Header("Content-Type", "text/event-stream")
+		c.Header("Cache-Control", "no-cache")
+		c.Header("Connection", "keep-alive")
+
+		// 用于接收关闭通知
+		clientClosed := c.Writer.CloseNotify()
+
+		ticker := time.NewTicker(heartCheckDuration)
+		defer ticker.Stop()
+
+		// 调用处理函数，获取事件通道
+		eventChan := h(c, param)
+
+		for {
+			select {
+			case <-clientClosed:
+				log.InfoContext(c.Request.Context(), "WrapCompetitionSSEHandler client closed")
+				return
+			case t := <-ticker.C:
+				_, _ = fmt.Fprintf(c.Writer, "data: %v\n\n", t.Format("2006-01-02 15:04:05"))
+				c.Writer.Flush()
+			case event, ok := <-eventChan:
+				if !ok {
+					log.InfoContext(c.Request.Context(), "WrapCompetitionSSEHandler event channel closed")
+					_, _ = fmt.Fprintf(c.Writer, "data: closed\n\n")
+					return
+				}
+				_, _ = fmt.Fprintf(c.Writer, "data: %v\n\n", event)
+				c.Writer.Flush()
+			}
+		}
 	}
 }
