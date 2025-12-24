@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/pflag"
@@ -11,6 +12,12 @@ import (
 const defaultConfigPath = "./config/config.yaml"
 
 func main() {
+	loc, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		log.Panicf("load location failed: %v", err)
+	}
+	time.Local = loc
+
 	cfile := pflag.String("config", defaultConfigPath, "config file path")
 	pflag.Parse()
 

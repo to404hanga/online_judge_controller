@@ -9,6 +9,7 @@ import (
 	json "github.com/bytedance/sonic"
 	"github.com/redis/go-redis/v9"
 	ojmodel "github.com/to404hanga/online_judge_common/model"
+	"github.com/to404hanga/online_judge_controller/constants"
 	"github.com/to404hanga/online_judge_controller/model"
 	"github.com/to404hanga/online_judge_controller/pkg/pointer"
 	"github.com/to404hanga/pkg404/gotools/retry"
@@ -46,6 +47,8 @@ type CompetitionService interface {
 	UserGetCompetitionProblemDetail(ctx context.Context, competitionID, problemID uint64) (*ojmodel.Problem, error)
 	// CheckUserCompetitionProblemAccepted 检查用户比赛题目是否已通过
 	CheckUserCompetitionProblemAccepted(ctx context.Context, competitionID, problemID, userID uint64) (bool, error)
+	// SubscribeCompetitionEndEvent 订阅比赛结束事件
+	SubscribeCompetitionEndEvent(ctx context.Context, competitionID uint64) chan string
 }
 
 const (
@@ -676,4 +679,65 @@ func (s *CompetitionServiceImpl) CheckUserCompetitionProblemAccepted(ctx context
 		return false, fmt.Errorf("CheckUserCompetitionProblemAccepted: failed to count competition submission: %w", err)
 	}
 	return count > 0, nil
+}
+
+func (s *CompetitionServiceImpl) SubscribeCompetitionEndEvent(ctx context.Context, competitionID uint64) chan string {
+	ch := make(chan string, 1)
+	uc, ok := s.rdb.(redis.UniversalClient)
+	if !ok {
+		s.log.ErrorContext(ctx, "SubscribeCompetitionEndEvent: redis cmdable not universal client")
+		close(ch)
+		return ch
+	}
+	go func() {
+		eventKey := fmt.Sprintf(constants.RedisPubSubCompetitionEndEventKey, competitionID)
+		pubsub := uc.Subscribe(ctx, eventKey)
+		ticker := time.NewTicker(1 * time.Minute)
+		defer pubsub.Close()
+		defer close(ch)
+		remainingTime := s.getRemainingTime(ctx, competitionID)
+		if remainingTime != "" {
+			ch <- remainingTime
+		}
+		for {
+			select {
+			case <-ctx.Done():
+				s.log.InfoContext(ctx, "SubscribeCompetitionEndEvent: client closed")
+				return
+			case msg := <-pubsub.Channel():
+				s.log.DebugContext(ctx, "SubscribeCompetitionEndEvent: received competition end event",
+					logger.String("event", msg.Payload))
+				s.log.InfoContext(ctx, "SubscribeCompetitionEndEvent: competition end event received")
+				return
+			case <-ticker.C:
+				remainingTime := s.getRemainingTime(ctx, competitionID)
+				if remainingTime == "" {
+					continue
+				}
+				ch <- remainingTime
+			}
+		}
+	}()
+	return ch
+}
+
+func (s *CompetitionServiceImpl) getRemainingTime(ctx context.Context, competitionID uint64) string {
+	competition, err := s.GetCompetition(ctx, competitionID)
+	if err != nil {
+		s.log.ErrorContext(ctx, "SubscribeCompetitionEndEvent: failed to get competition", logger.Error(err))
+		return ""
+	}
+	now := time.Now()
+	if now.After(competition.EndTime) {
+		s.log.InfoContext(ctx, "SubscribeCompetitionEndEvent: competition end time reached")
+		return "close"
+	}
+	seconds := int(competition.EndTime.Sub(now).Seconds())
+	days := seconds / 60 / 60 / 24
+	seconds %= 60 * 60 * 24
+	hours := seconds / 60 / 60
+	seconds %= 60 * 60
+	minutes := seconds / 60
+	seconds %= 60
+	return fmt.Sprintf("remaining: %d:%02d:%02d:%02d", days, hours, minutes, seconds)
 }

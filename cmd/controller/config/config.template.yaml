@@ -26,6 +26,7 @@ gin:
     - "/UserGetCompetitionProblemDetail"
     - "/UserGetCompetitionProblemList"
     - "/CheckUserCompetitionProblemAccepted"
+    - "/TimeEvent"
   addr: ":8080"
 
 redis:

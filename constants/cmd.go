@@ -32,6 +32,7 @@ const (
 	UserGetCompetitionProblemListPath       = "/UserGetCompetitionProblemList"       // 用户获取比赛题目列表
 	UserGetCompetitionProblemDetailPath     = "/UserGetCompetitionProblemDetail"     // 用户获取比赛题目详情
 	CheckUserCompetitionProblemAcceptedPath = "/CheckUserCompetitionProblemAccepted" // 检查用户比赛题目是否已通过
+	TimeEventPath                           = "/TimeEvent"                           // 比赛时间事件
 )
 
 const (

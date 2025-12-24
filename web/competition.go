@@ -59,6 +59,7 @@ func (h *CompetitionHandler) Register(r *gin.Engine) {
 	r.GET(constants.GetCompetitionProblemListPath, gintool.WrapHandler(h.GetCompetitionProblemList, h.log))
 	r.GET(constants.GetCompetitionPath, gintool.WrapHandler(h.GetCompetition, h.log))
 	r.GET(constants.CheckUserCompetitionProblemAcceptedPath, gintool.WrapCompetitionHandler(h.CheckUserCompetitionProblemAccepted, h.log))
+	r.GET(constants.TimeEventPath, gintool.WrapCompetitionSSEHandler(h.TimeEventHandler, h.log, time.Second*10))
 }
 
 func (h *CompetitionHandler) CreateCompetition(c *gin.Context, param *model.CreateCompetitionParam) {
@@ -653,4 +654,30 @@ func (h *CompetitionHandler) CheckUserCompetitionProblemAccepted(c *gin.Context,
 		Message: "success",
 		Data:    accepted,
 	})
+}
+
+func (h *CompetitionHandler) TimeEventHandler(c *gin.Context, param *model.TimeEventParam) chan string {
+	ctx := loggerv2.ContextWithFields(c.Request.Context(),
+		logger.Uint64("competition_id", param.CompetitionID),
+	)
+
+	ch := make(chan string, 1)
+	eventCh := h.competitionSvc.SubscribeCompetitionEndEvent(ctx, param.CompetitionID)
+	go func() {
+		defer close(ch)
+		for {
+			select {
+			case <-c.Done():
+				h.log.InfoContext(c.Request.Context(), "TimeEventHandler client closed")
+				return
+			case event, ok := <-eventCh:
+				if !ok {
+					h.log.InfoContext(c.Request.Context(), "TimeEventHandler competition end event channel closed")
+					return
+				}
+				ch <- event
+			}
+		}
+	}()
+	return ch
 }
