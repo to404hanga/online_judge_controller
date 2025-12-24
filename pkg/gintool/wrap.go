@@ -326,6 +326,7 @@ func WrapCompetitionSSEHandler[T model.CompetitionCommonParamInterface](h func(c
 				if !ok {
 					log.InfoContext(c.Request.Context(), "WrapCompetitionSSEHandler event channel closed")
 					_, _ = fmt.Fprintf(c.Writer, "data: closed\n\n")
+					c.Writer.Flush()
 					return
 				}
 				_, _ = fmt.Fprintf(c.Writer, "data: %v\n\n", event)
