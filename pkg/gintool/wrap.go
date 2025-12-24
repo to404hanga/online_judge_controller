@@ -237,6 +237,11 @@ func WrapCompetitionHandler[T model.CompetitionCommonParamInterface](h func(c *g
 func WrapCompetitionWithoutBodyHandler[T model.CompetitionCommonParamInterface](h func(c *gin.Context, pType T), log loggerv2.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var param T
+		// 确保指针类型的 T 不为 nil，避免在 ExtractOperator 中调用 SetOperator 时报空指针
+		rv := reflect.ValueOf(param)
+		if rv.IsValid() && rv.Kind() == reflect.Ptr && rv.IsNil() {
+			param = reflect.New(rv.Type().Elem()).Interface().(T)
+		}
 
 		userClaims, exists := c.Get(constants.ContextCompetitionClaimsKey)
 		if !exists {
@@ -267,6 +272,11 @@ func WrapCompetitionWithoutBodyHandler[T model.CompetitionCommonParamInterface](
 func WrapCompetitionSSEHandler[T model.CompetitionCommonParamInterface](h func(c *gin.Context, pType T) chan string, log loggerv2.Logger, heartCheckDuration time.Duration) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var param T
+		// 确保指针类型的 T 不为 nil，避免在 ExtractOperator 中调用 SetOperator 时报空指针
+		rv := reflect.ValueOf(param)
+		if rv.IsValid() && rv.Kind() == reflect.Ptr && rv.IsNil() {
+			param = reflect.New(rv.Type().Elem()).Interface().(T)
+		}
 
 		userClaims, exists := c.Get(constants.ContextCompetitionClaimsKey)
 		if !exists {
