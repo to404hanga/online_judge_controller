@@ -44,8 +44,9 @@ func (e *CSVDetailExporter) Export(ctx context.Context, competitionID uint64, wr
 	headers := make([]string, 0, (len(problemIDList)+1)*2)
 	headers = append(headers, "学号", "姓名")
 	for _, problemID := range problemIDList {
-		headers = append(headers, fmt.Sprintf("%d题-通过时间", problemID))
-		headers = append(headers, fmt.Sprintf("%d题-尝试次数", problemID))
+		headers = append(headers,
+			fmt.Sprintf("%d题-通过时间", problemID),
+			fmt.Sprintf("%d题-尝试次数", problemID))
 	}
 
 	err = csvWriter.Write(headers)
@@ -59,6 +60,7 @@ func (e *CSVDetailExporter) Export(ctx context.Context, competitionID uint64, wr
 	}
 	record := make([]string, 0, len(headers))
 	for _, detail := range details {
+		record = record[:0] // 清空记录
 		record = append(record, detail.Username, detail.Realname)
 		for _, problemID := range problemIDList {
 			if detail.ProblemID == problemID {
