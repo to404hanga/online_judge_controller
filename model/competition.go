@@ -81,8 +81,8 @@ func (t ModelExportType) ToFactoryType() factory.ExporterType {
 type ExportCompetitionDataParam struct {
 	CommonParam `json:"-"`
 
-	CompetitionID uint64          `json:"competition_id" binding:"required"`
-	ExportType    ModelExportType `json:"export_type" binding:"required,oneof=1 2 3"`
+	CompetitionID uint64          `form:"competition_id" binding:"required"`
+	ExportType    ModelExportType `form:"export_type" binding:"required,oneof=1 2 3"`
 }
 
 type GetCompetitionListParam struct {
