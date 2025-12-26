@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/viper"
 	"github.com/to404hanga/online_judge_controller/config"
 	"github.com/to404hanga/online_judge_controller/pkg/gintool"
@@ -35,6 +36,7 @@ func InitGinServer(l loggerv2.Logger, jwtHandler jwt.Handler, db *gorm.DB, compe
 
 	engine := gin.Default()
 	pprof.Register(engine)
+	engine.GET("/metrics", gin.WrapH(promhttp.Handler()))
 	engine.Use(
 		jwtBuilder.CheckCompetition(),
 		gintool.ContextMiddleware(),
