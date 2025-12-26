@@ -3,6 +3,7 @@ package web
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -242,11 +243,22 @@ func (h *CompetitionHandler) DisableCompetitionProblem(c *gin.Context, param *mo
 }
 
 func (h *CompetitionHandler) StartCompetition(c *gin.Context, param *model.StartCompetitionParam) {
+	start := time.Now()
+	code := http.StatusOK
+	reason := "ok"
+	defer func() {
+		codeLabel := strconv.Itoa(code)
+		startCompetitionRequestsTotal.WithLabelValues(codeLabel, reason).Inc()
+		startCompetitionDurationSeconds.WithLabelValues(codeLabel, reason).Observe(time.Since(start).Seconds())
+	}()
+
 	ctx := loggerv2.ContextWithFields(c.Request.Context(), logger.Uint64("competition_id", param.CompetitionID))
 
 	// 检查用户是否在比赛名单中
 	ok, err := h.competitionSvc.CheckUserInCompetition(ctx, param.CompetitionID, param.Operator)
 	if err != nil {
+		code = http.StatusInternalServerError
+		reason = "check_user_in_competition_error"
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,
 			Message: fmt.Sprintf("CheckUserInCompetition failed: %s", err.Error()),
@@ -255,6 +267,8 @@ func (h *CompetitionHandler) StartCompetition(c *gin.Context, param *model.Start
 		return
 	}
 	if !ok {
+		code = http.StatusForbidden
+		reason = "user_not_in_competition"
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusForbidden,
 			Message: "You are not in the competition user list",
@@ -266,6 +280,8 @@ func (h *CompetitionHandler) StartCompetition(c *gin.Context, param *model.Start
 	// 检查是否在比赛时间内
 	ok, err = h.competitionSvc.CheckCompetitionTime(ctx, param.CompetitionID)
 	if err != nil {
+		code = http.StatusInternalServerError
+		reason = "check_competition_time_error"
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,
 			Message: fmt.Sprintf("CheckCompetitionTime failed: %s", err.Error()),
@@ -274,6 +290,8 @@ func (h *CompetitionHandler) StartCompetition(c *gin.Context, param *model.Start
 		return
 	}
 	if !ok {
+		code = http.StatusForbidden
+		reason = "not_in_competition_time"
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusForbidden,
 			Message: "不在比赛时间内",
@@ -284,6 +302,8 @@ func (h *CompetitionHandler) StartCompetition(c *gin.Context, param *model.Start
 	// 设置比赛 token
 	err = h.jwtHandler.SetCompetitionToken(c, param.CompetitionID, param.Operator)
 	if err != nil {
+		code = http.StatusInternalServerError
+		reason = "set_competition_token_error"
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,
 			Message: fmt.Sprintf("SetCompetitionToken failed: %s", err.Error()),
@@ -299,11 +319,22 @@ func (h *CompetitionHandler) StartCompetition(c *gin.Context, param *model.Start
 }
 
 func (h *CompetitionHandler) GetCompetitionRankingList(c *gin.Context, param *model.GetCompetitionRankingListParam) {
+	start := time.Now()
+	code := http.StatusOK
+	reason := "ok"
+	defer func() {
+		codeLabel := strconv.Itoa(code)
+		getCompetitionRankingListRequestsTotal.WithLabelValues(codeLabel, reason).Inc()
+		getCompetitionRankingListDurationSeconds.WithLabelValues(codeLabel, reason).Observe(time.Since(start).Seconds())
+	}()
+
 	ctx := loggerv2.ContextWithFields(c.Request.Context(),
 		logger.Uint64("competition_id", param.CompetitionID))
 
 	rankingList, total, err := h.rankingSvc.GetCompetitionRankingList(ctx, param.CompetitionID, param.Page, param.PageSize)
 	if err != nil {
+		code = http.StatusInternalServerError
+		reason = "get_competition_ranking_list_error"
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,
 			Message: fmt.Sprintf("GetCompetitionRankingList failed: %s", err.Error()),
@@ -323,6 +354,7 @@ func (h *CompetitionHandler) GetCompetitionRankingList(c *gin.Context, param *mo
 	})
 }
 
+// 暂时弃用
 func (h *CompetitionHandler) GetCompetitionFastestSolverList(c *gin.Context, param *model.GetCompetitionFastestSolverListParam) {
 	ctx := loggerv2.ContextWithFields(c.Request.Context(),
 		logger.Uint64("competition_id", param.CompetitionID))
@@ -478,6 +510,15 @@ func (h *CompetitionHandler) GetCompetitionList(c *gin.Context, param *model.Get
 }
 
 func (h *CompetitionHandler) UserGetCompetitionList(c *gin.Context, param *model.UserGetCompetitionListParam) {
+	start := time.Now()
+	code := http.StatusOK
+	reason := "ok"
+	defer func() {
+		codeLabel := strconv.Itoa(code)
+		userGetCompetitionListRequestsTotal.WithLabelValues(codeLabel, reason).Inc()
+		userGetCompetitionListDurationSeconds.WithLabelValues(codeLabel, reason).Observe(time.Since(start).Seconds())
+	}()
+
 	fields := []logger.Field{
 		logger.Bool("desc", param.Desc),
 		logger.Int("page", param.Page),
@@ -506,6 +547,8 @@ func (h *CompetitionHandler) UserGetCompetitionList(c *gin.Context, param *model
 		param.Page,
 		param.PageSize)
 	if err != nil {
+		code = http.StatusInternalServerError
+		reason = "user_get_competition_list_error"
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,
 			Message: fmt.Sprintf("UserGetCompetitionList failed: %s", err.Error()),
@@ -591,11 +634,22 @@ func (h *CompetitionHandler) GetCompetition(c *gin.Context, param *model.GetComp
 }
 
 func (h *CompetitionHandler) UserGetCompetitionProblemList(c *gin.Context, param *model.UserGetCompetitionProblemListParam) {
+	start := time.Now()
+	code := http.StatusOK
+	reason := "ok"
+	defer func() {
+		codeLabel := strconv.Itoa(code)
+		userGetCompetitionProblemListRequestsTotal.WithLabelValues(codeLabel, reason).Inc()
+		userGetCompetitionProblemListDurationSeconds.WithLabelValues(codeLabel, reason).Observe(time.Since(start).Seconds())
+	}()
+
 	ctx := loggerv2.ContextWithFields(c.Request.Context(), logger.Uint64("competition_id", param.CompetitionID))
 	h.log.DebugContext(ctx, "UserGetCompetitionProblemList param")
 
 	problemList, err := h.competitionSvc.UserGetCompetitionProblemList(ctx, param.CompetitionID)
 	if err != nil {
+		code = http.StatusInternalServerError
+		reason = "user_get_competition_problem_list_error"
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,
 			Message: fmt.Sprintf("UserGetCompetitionProblemList failed: %s", err.Error()),
@@ -611,6 +665,15 @@ func (h *CompetitionHandler) UserGetCompetitionProblemList(c *gin.Context, param
 }
 
 func (h *CompetitionHandler) UserGetCompetitionProblemDetail(c *gin.Context, param *model.UserGetCompetitionProblemDetailParam) {
+	start := time.Now()
+	code := http.StatusOK
+	reason := "ok"
+	defer func() {
+		codeLabel := strconv.Itoa(code)
+		userGetCompetitionProblemDetailRequestsTotal.WithLabelValues(codeLabel, reason).Inc()
+		userGetCompetitionProblemDetailDurationSeconds.WithLabelValues(codeLabel, reason).Observe(time.Since(start).Seconds())
+	}()
+
 	ctx := loggerv2.ContextWithFields(c.Request.Context(),
 		logger.Uint64("competition_id", param.CompetitionID),
 		logger.Uint64("problem_id", param.ProblemID))
@@ -618,6 +681,8 @@ func (h *CompetitionHandler) UserGetCompetitionProblemDetail(c *gin.Context, par
 
 	problem, err := h.competitionSvc.UserGetCompetitionProblemDetail(ctx, param.CompetitionID, param.ProblemID)
 	if err != nil {
+		code = http.StatusInternalServerError
+		reason = "user_get_competition_problem_detail_error"
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,
 			Message: fmt.Sprintf("UserGetCompetitionProblemDetail failed: %s", err.Error()),
@@ -634,6 +699,15 @@ func (h *CompetitionHandler) UserGetCompetitionProblemDetail(c *gin.Context, par
 }
 
 func (h *CompetitionHandler) CheckUserCompetitionProblemAccepted(c *gin.Context, param *model.CheckUserCompetitionProblemAcceptedParam) {
+	start := time.Now()
+	code := http.StatusOK
+	reason := "ok"
+	defer func() {
+		codeLabel := strconv.Itoa(code)
+		checkUserCompetitionProblemAcceptedRequestsTotal.WithLabelValues(codeLabel, reason).Inc()
+		checkUserCompetitionProblemAcceptedDurationSeconds.WithLabelValues(codeLabel, reason).Observe(time.Since(start).Seconds())
+	}()
+
 	ctx := loggerv2.ContextWithFields(c.Request.Context(),
 		logger.Uint64("competition_id", param.CompetitionID),
 		logger.Uint64("problem_id", param.ProblemID))
@@ -641,6 +715,8 @@ func (h *CompetitionHandler) CheckUserCompetitionProblemAccepted(c *gin.Context,
 
 	accepted, err := h.competitionSvc.CheckUserCompetitionProblemAccepted(ctx, param.CompetitionID, param.ProblemID, param.Operator)
 	if err != nil {
+		code = http.StatusInternalServerError
+		reason = "check_user_competition_problem_accepted_error"
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,
 			Message: fmt.Sprintf("CheckUserCompetitionProblemAccepted failed: %s", err.Error()),
@@ -657,6 +733,10 @@ func (h *CompetitionHandler) CheckUserCompetitionProblemAccepted(c *gin.Context,
 }
 
 func (h *CompetitionHandler) TimeEventHandler(c *gin.Context, param *model.TimeEventParam) chan string {
+	start := time.Now()
+	timeEventActiveConnections.Inc()
+	timeEventConnectionsTotal.WithLabelValues("open").Inc()
+
 	ctx := loggerv2.ContextWithFields(c.Request.Context(),
 		logger.Uint64("competition_id", param.CompetitionID),
 	)
@@ -664,15 +744,24 @@ func (h *CompetitionHandler) TimeEventHandler(c *gin.Context, param *model.TimeE
 	ch := make(chan string, 1)
 	eventCh := h.competitionSvc.SubscribeCompetitionEndEvent(ctx, param.CompetitionID)
 	go func() {
+		closeReason := "closed"
 		defer close(ch)
+		defer func() {
+			timeEventActiveConnections.Dec()
+			timeEventConnectionDurationSeconds.WithLabelValues(closeReason).Observe(time.Since(start).Seconds())
+		}()
 		for {
 			select {
 			case <-c.Done():
 				h.log.InfoContext(c.Request.Context(), "TimeEventHandler client closed")
+				closeReason = "client_closed"
+				timeEventConnectionsTotal.WithLabelValues("client_closed").Inc()
 				return
 			case event, ok := <-eventCh:
 				if !ok {
 					h.log.InfoContext(c.Request.Context(), "TimeEventHandler competition end event channel closed")
+					closeReason = "event_channel_closed"
+					timeEventConnectionsTotal.WithLabelValues("event_channel_closed").Inc()
 					return
 				}
 				ch <- event

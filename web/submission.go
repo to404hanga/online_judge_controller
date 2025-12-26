@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/prometheus/client_golang/prometheus"
 	ojmodel "github.com/to404hanga/online_judge_common/model"
 	"github.com/to404hanga/online_judge_controller/constants"
 	"github.com/to404hanga/online_judge_controller/model"
@@ -19,32 +18,6 @@ import (
 )
 
 const SubmissionBucket = "submission"
-
-var (
-	submitCompetitionProblemRequestsTotal = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: "online_judge_controller",
-			Subsystem: "submission",
-			Name:      "submit_competition_problem_requests_total",
-			Help:      "SubmitCompetitionProblem requests total.",
-		},
-		[]string{"code", "reason", "language"},
-	)
-	submitCompetitionProblemDurationSeconds = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Namespace: "online_judge_controller",
-			Subsystem: "submission",
-			Name:      "submit_competition_problem_duration_seconds",
-			Help:      "SubmitCompetitionProblem duration in seconds.",
-			Buckets:   prometheus.DefBuckets,
-		},
-		[]string{"code", "reason", "language"},
-	)
-)
-
-func init() {
-	prometheus.MustRegister(submitCompetitionProblemRequestsTotal, submitCompetitionProblemDurationSeconds)
-}
 
 type SubmissionHandler struct {
 	submissionSvc  service.SubmissionService
@@ -147,12 +120,23 @@ func (h *SubmissionHandler) SubmitCompetitionProblem(c *gin.Context, param *mode
 }
 
 func (h *SubmissionHandler) GetLatestSubmission(c *gin.Context, param *model.GetLatestSubmissionParam) {
+	start := time.Now()
+	code := http.StatusOK
+	reason := "ok"
+	defer func() {
+		codeLabel := strconv.Itoa(code)
+		getLatestSubmissionRequestsTotal.WithLabelValues(codeLabel, reason).Inc()
+		getLatestSubmissionDurationSeconds.WithLabelValues(codeLabel, reason).Observe(time.Since(start).Seconds())
+	}()
+
 	ctx := loggerv2.ContextWithFields(c.Request.Context(),
 		logger.Uint64("competition_id", param.CompetitionID),
 		logger.Uint64("problem_id", param.ProblemID))
 
 	submission, err := h.submissionSvc.GetLatestSubmission(ctx, param.CompetitionID, param.ProblemID, param.Operator)
 	if err != nil {
+		code = http.StatusInternalServerError
+		reason = "get_latest_submission_error"
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,
 			Message: err.Error(),
@@ -161,6 +145,8 @@ func (h *SubmissionHandler) GetLatestSubmission(c *gin.Context, param *model.Get
 		return
 	}
 	if submission == nil || submission.ID == 0 {
+		code = http.StatusNotFound
+		reason = "submission_not_found"
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusNotFound,
 			Message: "No submission found",
