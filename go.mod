@@ -15,7 +15,7 @@ require (
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
-	github.com/to404hanga/online_judge_common v0.0.18
+	github.com/to404hanga/online_judge_common v1.0.0-beta
 	github.com/to404hanga/pkg404 v0.0.35
 	github.com/xuri/excelize/v2 v2.9.1
 	golang.org/x/crypto v0.40.0

@@ -68,7 +68,11 @@ func (s *SubmissionServiceImpl) SubmitCompetitionProblem(ctx context.Context, pa
 	}
 
 	// 通过 kafka 发布提交任务
-	msg := &pbsubmission.Submission{SubmissionId: submission.ID}
+	requestID, _ := ctx.Value("request_id").(string)
+	msg := &pbsubmission.Submission{
+		SubmissionId: submission.ID,
+		RequestId:    requestID,
+	}
 	val, err := proto.Marshal(msg)
 	if err != nil {
 		return fmt.Errorf("SubmitCompetitionProblem failed at marshal message: %w", err)

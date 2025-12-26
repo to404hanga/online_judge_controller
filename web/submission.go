@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -78,6 +79,8 @@ func (h *SubmissionHandler) SubmitCompetitionProblem(c *gin.Context, param *mode
 		return
 	}
 
+	// 接下来需要调用其他服务，ctx 携带 request_id 进行传递
+	ctx = context.WithValue(ctx, "request_id", c.GetHeader(constants.HeaderRequestIDKey))
 	err = h.submissionSvc.SubmitCompetitionProblem(ctx, param)
 	if err != nil {
 		gintool.GinResponse(c, &gintool.Response{
