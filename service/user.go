@@ -87,7 +87,7 @@ func (s *UserServiceImpl) GetRoleByID(ctx context.Context, userID uint64) (ojmod
 // GetUserList 获取用户列表
 func (s *UserServiceImpl) GetUserList(ctx context.Context, param *model.GetUserListParam) ([]ojmodel.User, int, error) {
 	var users []ojmodel.User
-	query := s.db.WithContext(ctx)
+	query := s.db.WithContext(ctx).Model(&ojmodel.User{})
 
 	if len(param.Username) != 0 {
 		query = query.Where("username like ?", param.Username+"%")
