@@ -301,7 +301,7 @@ func (s *CompetitionServiceImpl) CheckUserInCompetition(ctx context.Context, com
 
 	if !ok {
 		// 未获取到锁，休眠后重试，让持有锁的协程完成缓存加载
-		time.Sleep(1 * time.Second)
+		time.Sleep(100 * time.Millisecond)
 		return s.CheckUserInCompetition(ctx, competitionID, userID)
 	}
 	defer func() {
@@ -377,7 +377,7 @@ func (s *CompetitionServiceImpl) CheckCompetitionTime(ctx context.Context, compe
 
 	if !ok {
 		// 未获取到锁，休眠后重试
-		time.Sleep(1 * time.Second)
+		time.Sleep(100 * time.Millisecond)
 		return s.CheckCompetitionTime(ctx, competitionID)
 	}
 	defer func() {
@@ -440,7 +440,7 @@ func (s *CompetitionServiceImpl) GetCompetition(ctx context.Context, competition
 
 	if !ok {
 		// 未获取到锁，休眠后重试
-		time.Sleep(1 * time.Second)
+		time.Sleep(100 * time.Millisecond)
 		return s.GetCompetition(ctx, competitionID)
 	}
 	defer func() {
@@ -546,7 +546,7 @@ func (s *CompetitionServiceImpl) UserGetCompetitionProblemList(ctx context.Conte
 
 	if !ok {
 		// 未获取到锁，休眠后重试
-		time.Sleep(1 * time.Second)
+		time.Sleep(100 * time.Millisecond)
 		return s.UserGetCompetitionProblemList(ctx, competitionID)
 	}
 	defer func() {
@@ -612,7 +612,7 @@ func (s *CompetitionServiceImpl) UserGetCompetitionProblemDetail(ctx context.Con
 
 	if !ok {
 		// 未获取到锁，休眠后重试
-		time.Sleep(1 * time.Second)
+		time.Sleep(100 * time.Millisecond)
 		return s.UserGetCompetitionProblemDetail(ctx, competitionID, problemID)
 	}
 	defer func() {
