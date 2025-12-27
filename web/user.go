@@ -75,7 +75,7 @@ func (h *UserHandler) GetUserList(c *gin.Context, param *model.GetUserListParam)
 	ctx := loggerv2.ContextWithFields(c.Request.Context(), fields...)
 	h.log.DebugContext(ctx, "GetUserList param")
 
-	users, err := h.userSvc.GetUserList(c.Request.Context(), param)
+	users, total, err := h.userSvc.GetUserList(c.Request.Context(), param)
 	if err != nil {
 		gintool.GinResponse(c, &gintool.Response{
 			Code:    http.StatusInternalServerError,
@@ -89,7 +89,7 @@ func (h *UserHandler) GetUserList(c *gin.Context, param *model.GetUserListParam)
 		Code:    http.StatusOK,
 		Message: "success",
 		Data: model.GetUserListResponse{
-			Total:    len(users),
+			Total:    total,
 			List:     users,
 			Page:     param.Page,
 			PageSize: param.PageSize,

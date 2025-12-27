@@ -30,7 +30,7 @@ type UserService interface {
 	// GetRoleByID 获取用户角色
 	GetRoleByID(ctx context.Context, userID uint64) (ojmodel.UserRole, error)
 	// GetUserList 获取用户列表
-	GetUserList(ctx context.Context, param *model.GetUserListParam) ([]ojmodel.User, error)
+	GetUserList(ctx context.Context, param *model.GetUserListParam) ([]ojmodel.User, int, error)
 	// AddUsersToCompetition 添加用户到比赛名单
 	AddUsersToCompetition(ctx context.Context, competitionID uint64, userMap map[uint64]*ojmodel.User, startTime time.Time) (int64, error)
 	// GetUserListByUsernameList 获取用户列表, 根据学号全匹配, 仅返回正常用户
@@ -85,7 +85,7 @@ func (s *UserServiceImpl) GetRoleByID(ctx context.Context, userID uint64) (ojmod
 }
 
 // GetUserList 获取用户列表
-func (s *UserServiceImpl) GetUserList(ctx context.Context, param *model.GetUserListParam) ([]ojmodel.User, error) {
+func (s *UserServiceImpl) GetUserList(ctx context.Context, param *model.GetUserListParam) ([]ojmodel.User, int, error) {
 	var users []ojmodel.User
 	query := s.db.WithContext(ctx)
 
@@ -102,21 +102,28 @@ func (s *UserServiceImpl) GetUserList(ctx context.Context, param *model.GetUserL
 		query = query.Where("status = ?", *param.Status)
 	}
 
+	var total int64
+	err := query.Count(&total).Error
+	if err != nil {
+		s.log.ErrorContext(ctx, "GetUserList failed", logger.Error(err))
+		return nil, 0, err
+	}
+
 	orderBy := param.OrderBy
 	if param.Desc {
 		orderBy += " desc"
 	}
 
-	err := query.Order(orderBy).
+	err = query.Order(orderBy).
 		Offset((param.Page-1)*param.PageSize).
 		Limit(param.PageSize).
 		Select("id", "username", "realname", "role", "status", "created_at", "updated_at").
 		Find(&users).Error
 	if err != nil {
 		s.log.ErrorContext(ctx, "GetUserList failed", logger.Error(err))
-		return nil, err
+		return nil, int(total), err
 	}
-	return users, nil
+	return users, int(total), nil
 }
 
 // AddUsersToCompetition 添加用户到比赛名单
