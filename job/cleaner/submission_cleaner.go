@@ -27,7 +27,9 @@ func NewSubmissionCleaner(submissionSvc service.SubmissionService, log loggerv2.
 func (c *SubmissionCleaner) RunCleanup(ctx context.Context) error {
 	c.log.InfoContext(ctx, "Starting submission cleanup job")
 
-	c.submissionSvc.CleanUserFailedSubmission(ctx, time.Now().Add(-c.timeRange))
+	if err := c.submissionSvc.CleanUserFailedSubmission(ctx, time.Now().Add(-c.timeRange)); err != nil {
+		return err
+	}
 
 	c.log.InfoContext(ctx, "Submission cleanup completed")
 	return nil

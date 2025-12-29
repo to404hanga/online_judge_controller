@@ -18,6 +18,7 @@ func InitSubmissionCleaner(submissionSvc service.SubmissionService, l loggerv2.L
 	if err != nil {
 		log.Panicf("unmarshal submission cleaner config fail, err: %v", err)
 	}
+	log.Printf("submissionCleaner config loaded: cronExpr=%q enabled=%v timeout_ms=%d timeRange_days=%d", cfg.CronExpr, cfg.Enabled, cfg.Timeout, cfg.TimeRange)
 
 	m := cleaner.NewSubmissionCleaner(submissionSvc, l, time.Duration(cfg.TimeRange)*24*time.Hour)
 	jbCfg := &job.JobConfig{

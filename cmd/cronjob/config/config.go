@@ -1,26 +1,15 @@
 package config
 
 type BaseCronJobConfig struct {
-	CronExpr string `yaml:"cronExpr"`
-	Enabled  bool   `yaml:"enabled"`
-	Timeout  int    `yaml:"timeout"` // 单位: 毫秒
-}
-
-type MinIOCleanerConfig struct {
-	BaseCronJobConfig `yaml:",inline"`
-
-	Bucket              string `yaml:"bucket"`
-	OrphanFileCheckDays int    `yaml:"orphanFileCheckDays"` // 单位: 天
-}
-
-func (MinIOCleanerConfig) Key() string {
-	return "minIOCleaner"
+	CronExpr string `yaml:"cronExpr" mapstructure:"cronExpr"`
+	Enabled  bool   `yaml:"enabled" mapstructure:"enabled"`
+	Timeout  int    `yaml:"timeout" mapstructure:"timeout"` // 单位: 毫秒
 }
 
 type SubmissionCleanerConfig struct {
-	BaseCronJobConfig `yaml:",inline"`
+	BaseCronJobConfig `yaml:",inline" mapstructure:",squash"`
 
-	TimeRange int `yaml:"timeRange"` // 单位: 天
+	TimeRange int `yaml:"timeRange" mapstructure:"timeRange"` // 单位: 天
 }
 
 func (SubmissionCleanerConfig) Key() string {

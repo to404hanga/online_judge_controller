@@ -9,7 +9,9 @@ import (
 func InitScheduler(l loggerv2.Logger, problemSvc service.ProblemService, submissionSvc service.SubmissionService) *job.CronScheduler {
 	scheduler := job.NewCronScheduler(l)
 
-	scheduler.AddJob(InitSubmissionCleaner(submissionSvc, l))
+	if err := scheduler.AddJob(InitSubmissionCleaner(submissionSvc, l)); err != nil {
+		panic(err)
+	}
 
 	return scheduler
 }
